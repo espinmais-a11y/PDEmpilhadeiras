@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  body {
+    @apply bg-[#121414] text-[#e2e2e2] antialiased;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02";
+  }
+
+  .auth-input {
+    @apply w-full bg-[#0c0f0f] border border-[#444932] p-3 text-white focus:border-[#caf300] outline-none transition-all placeholder:text-[#333535];
+  }
+}
+
+/* Custom safety stripes */
+.bg-safety-stripe {
+  background: repeating-linear-gradient(
+    45deg,
+    #caf300,
+    #caf300 10px,
+    #121414 10px,
+    #121414 20px
+  );
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #121414;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #444932;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #caf300;
+}
+
+/* forced sync */
