@@ -16,15 +16,23 @@ import {
   Pencil,
   Wrench,
   Calendar,
-  X
+  X,
+  Mail,
+  Send,
+  Loader2,
+  Trash2
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { motion, AnimatePresence } from 'motion/react';
 import { ServiceOrderModal } from '../components/ServiceOrderModal';
+import { sendFinishedOSReport } from '../lib/emailService';
 
 export function ServiceOrders() {
   const { profile } = useAuth();
+  const isAdmin = profile?.role?.toString().toLowerCase().trim() === 'admin';
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
+  const [deletingOsId, setDeletingOsId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,6 +48,11 @@ export function ServiceOrders() {
   const now = new Date();
   const [dateStart, setDateStart] = useState(format(startOfMonth(now), 'yyyy-MM-dd'));
   const [dateEnd, setDateEnd] = useState(format(endOfMonth(now), 'yyyy-MM-dd'));
+
+  // Email report modal states
+  const [selectedEmailLog, setSelectedEmailLog] = useState<any>(null);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailSendingText, setEmailSendingText] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCustomers();
@@ -112,26 +125,114 @@ export function ServiceOrders() {
   };
 
   const handleCheckOut = async (orderId: string) => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      const { latitude, longitude } = pos.coords;
-      const { error } = await supabase
-        .from('service_orders')
-        .update({
-          status: 'Maintenance Done',
-          check_out_at: new Date().toISOString(),
-          check_out_lat: latitude,
-          check_out_lng: longitude,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
-      if (!error) fetchOrders();
-    });
+    setLoading(true);
+    setEmailSendingText('Finalizando serviço e gerando relatório técnico do cliente...');
+    
+    const performCheckOut = async (lat?: number, lng?: number) => {
+      try {
+        const { error } = await supabase
+          .from('service_orders')
+          .update({
+            status: 'Maintenance Done',
+            check_out_at: new Date().toISOString(),
+            check_out_lat: lat || null,
+            check_out_lng: lng || null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', orderId);
+
+        if (!error) {
+          setEmailSendingText('Enviando relatório de manutenção consolidado para o e-mail do cliente...');
+          await sendFinishedOSReport(orderId);
+          setEmailSendingText(null);
+          fetchOrders();
+        } else {
+          setEmailSendingText(null);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error(err);
+        setEmailSendingText(null);
+        setLoading(false);
+      }
+    };
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          await performCheckOut(pos.coords.latitude, pos.coords.longitude);
+        },
+        async () => {
+          await performCheckOut();
+        }
+      );
+    } else {
+      await performCheckOut();
+    }
+  };
+
+  const handleViewEmailLog = async (orderId: string) => {
+    setLoading(true);
+    setEmailSendingText('Buscando histórico do e-mail enviado...');
+    try {
+      const { data, error } = await supabase
+        .from('email_logs')
+        .eq('service_order_id', orderId)
+        .single();
+      
+      if (error || !data) {
+        // Generate retroactively for pre-existing or fallback situations
+        setEmailSendingText('Gerando novo relatório de e-mail retroativo...');
+        const res = await sendFinishedOSReport(orderId);
+        if (res.success && res.data) {
+          setSelectedEmailLog(res.data);
+          setEmailModalOpen(true);
+        } else {
+          alert('Não foi possível gerar o relatório de e-mail: ' + (res.error || 'Erro desconhecido.'));
+        }
+      } else {
+        setSelectedEmailLog(data);
+        setEmailModalOpen(true);
+      }
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setEmailSendingText(null);
+      setLoading(false);
+    }
   };
 
   const handleEdit = (order: ServiceOrder) => {
     setEditingOrder(order);
     setIsModalOpen(true);
+  };
+
+  const handleDeleteOS = async (orderId: string) => {
+    if (!isAdmin) return;
+    if (deletingOsId !== orderId) {
+      setDeletingOsId(orderId);
+      setTimeout(() => setDeletingOsId(null), 4000);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await supabase.from('used_parts').delete().eq('service_order_id', orderId);
+      await supabase.from('preventive_checklist_answers').delete().eq('service_order_id', orderId);
+      await supabase.from('service_order_photos').delete().eq('service_order_id', orderId);
+      await supabase.from('email_logs').delete().eq('service_order_id', orderId);
+
+      const { error } = await supabase.from('service_orders').delete().eq('id', orderId);
+      if (error) throw error;
+
+      setDeletingOsId(null);
+      fetchOrders();
+    } catch (err: any) {
+      console.error('[ServiceOrders] Delete error:', err);
+      alert('Erro ao excluir ordem de serviço: ' + (err.message || 'Erro desconhecido.'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCloseModal = () => {
@@ -329,7 +430,7 @@ export function ServiceOrders() {
                   <button 
                     onClick={() => handleEdit(os)}
                     className={clsx(
-                      "transition-colors p-1 rounded-lg",
+                      "transition-colors p-1 rounded-lg cursor-pointer",
                       isConcluded 
                         ? "text-[#c5c9ac] hover:text-white hover:bg-[#333535]" 
                         : "text-[#c5c9ac] hover:text-[#caf300] hover:bg-[#333535]"
@@ -338,6 +439,20 @@ export function ServiceOrders() {
                   >
                     <Pencil size={14} />
                   </button>
+                  {isAdmin && (
+                    <button 
+                      onClick={() => handleDeleteOS(os.id)}
+                      className={clsx(
+                        "transition-all p-1.5 rounded-lg cursor-pointer flex items-center justify-center border",
+                        deletingOsId === os.id
+                          ? "bg-[#93000a] text-white border-[#f1554c] animate-pulse"
+                          : "text-[#ffb4ab]/80 border-transparent hover:text-white hover:bg-[#93000a] hover:border-red-500/20"
+                      )}
+                      title={deletingOsId === os.id ? "Clique novamente para confirmar" : "Excluir OS"}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
                 </div>
              </div>
 
@@ -403,9 +518,17 @@ export function ServiceOrders() {
                 )}
 
                 {os.status === 'Maintenance Done' && (
-                   <div className="flex items-center justify-center gap-2 py-3 text-[10px] font-bold text-[#00c853] tracking-widest uppercase">
-                      <Wrench size={16} /> MANUTENÇÃO CONCLUÍDA
-                   </div>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-center gap-2 py-1.5 text-[10px] font-bold text-[#00c853] tracking-widest uppercase">
+                       <Wrench size={16} /> MANUTENÇÃO CONCLUÍDA
+                    </div>
+                    <button 
+                      onClick={() => handleViewEmailLog(os.id)}
+                      className="w-full bg-[#1e2020] hover:bg-[#282a2b] text-[#caf300] border border-[#caf300]/20 hover:border-[#caf300]/60 py-2 rounded-xl text-[10px] font-black tracking-widest flex items-center justify-center gap-2 transition-all uppercase cursor-pointer"
+                    >
+                      <Mail size={13} /> VER E-MAIL ENVIADO
+                    </button>
+                  </div>
                 )}
 
                 {os.status === 'Cancelled' && (
@@ -438,6 +561,110 @@ export function ServiceOrders() {
         onSuccess={fetchOrders}
         editingOrder={editingOrder}
       />
+
+      {/* FULL-SCREEN OVERLAY FOR GENERATION/SENDING EMAIL FEEDBACK */}
+      <AnimatePresence>
+        {emailSendingText && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/85 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-6 text-center"
+          >
+            <div className="relative mb-6">
+              <div className="w-16 h-16 border-4 border-[#444932] border-t-[#caf300] rounded-full animate-spin"></div>
+              <Mail className="absolute inset-x-0 inset-y-0 m-auto text-[#caf300] animate-pulse" size={24} />
+            </div>
+            <h3 className="text-white font-black text-xs uppercase tracking-[0.2em] mb-2">Processamento de Relatório</h3>
+            <p className="text-[#c5c9ac] text-xs max-w-sm font-sans tracking-tight leading-relaxed">{emailSendingText}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* DETAILED EMAIL PREVIEW OVERLAY MODAL */}
+      <AnimatePresence>
+        {emailModalOpen && selectedEmailLog && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              className="bg-[#121414] border border-[#444932] w-full max-w-4xl h-[90vh] flex flex-col shadow-2xl rounded-2xl overflow-hidden"
+            >
+              {/* Email Envelope Header */}
+              <div className="bg-[#1e2020] border-b border-[#444932] p-5 flex flex-col gap-3">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-emerald-950 p-2 rounded-xl text-emerald-400 border border-emerald-500/20">
+                      <Mail size={18} />
+                    </div>
+                    <div>
+                      <h3 className="text-white font-black text-xs uppercase tracking-wider mb-0.5">Relatório Concluído Enviado</h3>
+                      <p className="text-[#c5c9ac] text-[10px] font-mono">ID Registro: {selectedEmailLog.id}</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setEmailModalOpen(false);
+                      setSelectedEmailLog(null);
+                    }}
+                    className="text-[#c5c9ac] hover:text-white bg-[#282a2b] hover:bg-[#333535] p-2 rounded-xl transition-all cursor-pointer"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2 bg-[#0c0f0f] border border-[#444932] p-3.5 rounded-xl font-mono text-[11px] text-[#c5c9ac]">
+                  <div>
+                    <span className="text-[#caf300] font-bold">DE:</span> noreply@pdmanutencao.com.br
+                  </div>
+                  <div>
+                    <span className="text-[#caf300] font-bold">PARA:</span> {selectedEmailLog.recipient_email}
+                  </div>
+                  <div className="md:col-span-2">
+                    <span className="text-[#caf300] font-bold">ASSUNTO:</span> {selectedEmailLog.subject}
+                  </div>
+                  <div className="md:col-span-2">
+                    <span className="text-[#caf300] font-bold">ENVIADO EM:</span> {new Date(selectedEmailLog.sent_at).toLocaleString('pt-BR')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Email Body Preview via isolated Iframe */}
+              <div className="flex-1 bg-white p-2">
+                <iframe 
+                  title="Visualização do Email"
+                  srcDoc={selectedEmailLog.html_body}
+                  className="w-full h-full border-0 rounded-lg text-black"
+                  sandbox="allow-same-origin"
+                />
+              </div>
+
+              {/* Modal Control Footer */}
+              <div className="bg-[#1e2020] border-t border-[#444932] p-4 flex justify-between items-center text-xs text-[#c5c9ac] font-bold uppercase tracking-wider">
+                <div className="flex items-center gap-2 text-[#00c853]">
+                  <Send size={14} className="animate-bounce" />
+                  <span>Log de envio verificado e salvo</span>
+                </div>
+                <button 
+                  onClick={() => {
+                    setEmailModalOpen(false);
+                    setSelectedEmailLog(null);
+                  }}
+                  className="bg-[#caf300] text-[#121414] px-6 py-2.5 text-[10px] font-black tracking-widest hover:brightness-110 active:scale-[0.98] rounded-xl transition-all cursor-pointer"
+                >
+                  FECHAR PRÉVIA
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

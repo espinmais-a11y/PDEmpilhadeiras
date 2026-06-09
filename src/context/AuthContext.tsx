@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id);
+        fetchProfile(session.user.id, session.user.email);
       } else {
         setLoading(false);
       }
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
-        fetchProfile(currentUser.id);
+        fetchProfile(currentUser.id, currentUser.email);
       } else {
         setProfile(null);
         setLoading(false);
@@ -52,8 +52,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  async function fetchProfile(uid: string) {
+  async function fetchProfile(uid: string, emailFromSession?: string | null) {
     try {
+      const currentEmail = (emailFromSession || user?.email || '').toLowerCase().trim();
+      const isSystemAdminEmail = ['raoniespin@gmail.com', 'raopniespin@gmail.com', 'espin.mais@gmail.com'].includes(currentEmail);
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -63,20 +66,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!error && data) {
         // Robust role handling: ensure string, trim, and handle nulls
         const rawRole = data.role || 'Customer';
-        const cleanedRole = rawRole.toString().trim();
+        let cleanedRole = rawRole.toString().trim();
+        let approved = !!data.is_approved;
         
-        console.log(`[AuthSync] User: ${data.email}, DB Role: "${rawRole}", Final Role: "${cleanedRole}"`);
+        const profileEmail = (data.email || '').toLowerCase().trim();
+        const absoluteAdmin = isSystemAdminEmail || ['raoniespin@gmail.com', 'raopniespin@gmail.com', 'espin.mais@gmail.com'].includes(profileEmail);
+
+        if (absoluteAdmin) {
+          cleanedRole = 'Admin';
+          approved = true;
+          // Sync with DB if out of date
+          if (data.role !== 'Admin' || !data.is_approved) {
+            await supabase.from('profiles').update({ role: 'Admin', is_approved: true }).eq('id', uid);
+          }
+        }
+        
+        console.log(`[AuthSync] User: ${data.email || currentEmail}, DB Role: "${rawRole}", Final Role: "${cleanedRole}"`);
         
         setProfile({
           ...data,
-          role: cleanedRole as any
+          role: cleanedRole as any,
+          is_approved: approved
         } as Profile);
-      } else if (error) {
-        console.error('[AuthError] Failed to fetch profile:', error);
-        setProfile(null);
       } else {
-        console.log('[AuthDebug] Profile not found yet (trigger lag?)');
-        setProfile(null);
+        // Profile not found or error occurred
+        if (isSystemAdminEmail) {
+          // Auto-create/restore profile for admin email to make sure they can ALWAYS log in happily even if DB was reset
+          const backupProfile = {
+            id: uid,
+            full_name: 'RAONIESPIN',
+            email: currentEmail,
+            role: 'Admin',
+            is_approved: true,
+            avatar_url: null,
+            created_at: new Date().toISOString()
+          };
+          await supabase.from('profiles').insert(backupProfile);
+          setProfile(backupProfile as any);
+        } else {
+          console.error('[AuthError / ProfileNotFound] Resetting profile state.', error);
+          setProfile(null);
+        }
       }
     } catch (err) {
       console.error('Error fetching profile:', err);
@@ -91,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshProfile = async () => {
-    if (user) await fetchProfile(user.id);
+    if (user) await fetchProfile(user.id, user.email);
   };
 
   return (

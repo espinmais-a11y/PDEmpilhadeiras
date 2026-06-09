@@ -144,4 +144,42 @@ export interface ServiceOrderPhoto {
   created_at: string;
 }
 
+export interface InventoryItem {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  location: string;
+  quantity: number;
+  unit_price: number;
+  min_stock: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface InventoryHistory {
+  id: string;
+  item_id: string;
+  item_name: string;
+  item_code: string;
+  type: 'entrada' | 'saida' | 'ajuste';
+  quantity: number;
+  reason: string;
+  location: string;
+  user_name: string;
+  created_at: string;
+}
+
+export interface EmailLog {
+  id: string;
+  service_order_id: string;
+  recipient_email: string;
+  customer_name: string;
+  subject: string;
+  html_body: string;
+  text_body: string;
+  status: 'sent' | 'failed';
+  sent_at: string;
+}
+
 // forced sync

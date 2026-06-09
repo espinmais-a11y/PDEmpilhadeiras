@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { Customer, Machine, Profile, OSStatus, ServiceOrder, ChecklistItem, ChecklistAnswer, ServiceOrderPhoto } from '../types';
+import { Customer, Machine, Profile, OSStatus, ServiceOrder, ChecklistItem, ChecklistAnswer, ServiceOrderPhoto, UsedPart, InventoryItem } from '../types';
 import { 
   X, Loader2, AlertCircle, Clock, Trash2, Info, Wrench, ShieldCheck, 
   Camera, PenLine, MapPin, User, CheckCircle2, AlertTriangle, 
@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { clsx } from 'clsx';
+import { sendFinishedOSReport } from '../lib/emailService';
 
 interface ServiceOrderModalProps {
   isOpen: boolean;
@@ -20,7 +21,7 @@ interface ServiceOrderModalProps {
   onCheckOut?: (orderId: string) => void;
 }
 
-type TabId = 'info' | 'service' | 'preventive' | 'photos' | 'signature';
+type TabId = 'info' | 'service' | 'preventive' | 'photos' | 'signature' | 'parts';
 
 export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, onCheckOut }: ServiceOrderModalProps) {
   const { profile } = useAuth();
@@ -77,6 +78,13 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const lastPos = useRef<{ x: number; y: number } | null>(null);
 
+  // Used Parts state
+  const [usedParts, setUsedParts] = useState<UsedPart[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [selectedPartId, setSelectedPartId] = useState<string>('');
+  const [partQty, setPartQty] = useState<number>(1);
+  const [loadingParts, setLoadingParts] = useState<boolean>(false);
+
   // Determine which tabs to show
   const showPreventiveTab = formData.is_preventive || editingOrder?.is_preventive;
   const showPhotosTab = isEditing;
@@ -85,6 +93,7 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
   const tabs: { id: TabId; label: string; icon: React.ElementType; show: boolean }[] = [
     { id: 'info' as TabId, label: 'Info', icon: Info, show: true },
     { id: 'service' as TabId, label: 'Serviço', icon: Wrench, show: true },
+    { id: 'parts' as TabId, label: 'Peças', icon: ClipboardList, show: !!isEditing },
     { id: 'preventive' as TabId, label: 'Preventiva', icon: ShieldCheck, show: !!showPreventiveTab },
     { id: 'photos' as TabId, label: 'Fotos', icon: Camera, show: !!showPhotosTab },
     { id: 'signature' as TabId, label: 'Assinatura', icon: PenLine, show: !!showSignatureTab },
@@ -111,6 +120,8 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
         });
         fetchChecklistData(editingOrder.id);
         fetchPhotos(editingOrder.id);
+        fetchUsedParts(editingOrder.id);
+        fetchInventoryItems();
         if (editingOrder.vibe_signature) {
           setHasSavedSignature(true);
           setSignatureDataUrl(editingOrder.vibe_signature);
@@ -267,6 +278,7 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
         updated_at: new Date().toISOString(),
       };
 
+      let orderId = isEditing && editingOrder ? editingOrder.id : '';
       if (isEditing && editingOrder) {
         const { error: updateError } = await supabase.from('service_orders').update(payload).eq('id', editingOrder.id);
         if (updateError) throw updateError;
@@ -286,8 +298,21 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
         }
       } else {
         payload.created_by = profile?.id || null;
-        const { error: insertError } = await supabase.from('service_orders').insert([payload]);
+        const { data: insertList, error: insertError } = await supabase.from('service_orders').insert([payload]);
         if (insertError) throw insertError;
+        if (insertList && insertList[0]) {
+          orderId = insertList[0].id;
+        }
+      }
+
+      // If status is transitioning or set directly to Maintenance Done, dispatch report
+      const isConcluding = formData.status === 'Maintenance Done' && (!isEditing || (editingOrder && editingOrder.status !== 'Maintenance Done'));
+      if (isConcluding && orderId) {
+        try {
+          await sendFinishedOSReport(orderId);
+        } catch (mailErr) {
+          console.warn('[MailDispatch] Background mailer failed:', mailErr);
+        }
       }
 
       onSuccess();
@@ -319,6 +344,212 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
       setError('Erro ao excluir OS: ' + (err.message || ''));
     } finally {
       setLoading(false);
+    }
+  }
+
+  // ——— USED PARTS & INVENTORY INTEGRATION ———
+  async function fetchUsedParts(orderId: string) {
+    try {
+      setLoadingParts(true);
+      const { data, error } = await supabase
+        .from('used_parts')
+        .select('*')
+        .eq('service_order_id', orderId);
+      
+      if (error) throw error;
+      setUsedParts((data || []) as UsedPart[]);
+    } catch (err) {
+      console.error('Error loading used parts:', err);
+    } finally {
+      setLoadingParts(false);
+    }
+  }
+
+  async function fetchInventoryItems() {
+    try {
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*')
+        .order('code');
+      
+      if (error) throw error;
+      setInventoryItems((data || []) as InventoryItem[]);
+    } catch (err) {
+      console.error('Error loading inventory items:', err);
+    }
+  }
+
+  async function updateServiceOrderTotalPartsValue(orderId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('used_parts')
+        .select('*')
+        .eq('service_order_id', orderId);
+      
+      if (error) throw error;
+      
+      const totalPartsValue = (data || []).reduce((sum, p) => sum + (Number(p.quantity) * Number(p.unit_price || 0)), 0);
+      
+      await supabase
+        .from('service_orders')
+        .update({ total_value: totalPartsValue })
+        .eq('id', orderId);
+    } catch (err) {
+      console.error('Failed to sync OS total parts value:', err);
+    }
+  }
+
+  async function handleAddPart() {
+    if (!editingOrder) return;
+    if (!selectedPartId) {
+      setError('Selecione uma peça cadastrada do estoque.');
+      return;
+    }
+    if (partQty <= 0) {
+      setError('Quantidade precisa ser maior do que zero.');
+      return;
+    }
+
+    const selectedItem = inventoryItems.find(i => i.id === selectedPartId);
+    if (!selectedItem) {
+      setError('Peça inválida.');
+      return;
+    }
+
+    if (selectedItem.quantity < partQty) {
+      setError(`Estoque insuficiente! Saldo atual desta peça é de apenas ${selectedItem.quantity} U.`);
+      return;
+    }
+
+    setError(null);
+    setLoadingParts(true);
+
+    try {
+      const { data: realItemData, error: fetchErr } = await supabase
+        .from('inventory')
+        .select('*')
+        .eq('id', selectedPartId)
+        .single();
+      
+      if (fetchErr) throw fetchErr;
+      if (!realItemData || realItemData.quantity < partQty) {
+        throw new Error(`Estoque desatualizado ou insuficiente! Saldo real atual: ${realItemData?.quantity || 0} U.`);
+      }
+
+      const usedPartPayload = {
+        service_order_id: editingOrder.id,
+        part_name: `[${realItemData.code}] ${realItemData.name}`,
+        quantity: partQty,
+        unit_price: realItemData.unit_price,
+        created_at: new Date().toISOString()
+      };
+
+      const { error: insertErr } = await supabase
+        .from('used_parts')
+        .insert([usedPartPayload]);
+      if (insertErr) throw insertErr;
+
+      const newInventoryQty = realItemData.quantity - partQty;
+      const { error: updateInvErr } = await supabase
+        .from('inventory')
+        .update({ quantity: newInventoryQty })
+        .eq('id', selectedPartId);
+      if (updateInvErr) throw updateInvErr;
+
+      const historyLogPayload = {
+        item_id: selectedPartId,
+        item_code: realItemData.code,
+        item_name: realItemData.name,
+        type: 'saida',
+        quantity: partQty,
+        reason: `Dedução OS #${editingOrder.id} - ${editingOrder.title}`,
+        location: realItemData.location,
+        user_name: profile?.full_name || 'Técnico Especialista',
+        created_at: new Date().toISOString()
+      };
+      await supabase.from('inventory_history').insert([historyLogPayload]);
+
+      await updateServiceOrderTotalPartsValue(editingOrder.id);
+
+      setSuccessMsg(`Peça ${realItemData.code} adicionada e deduzida do estoque!`);
+      setSelectedPartId('');
+      setPartQty(1);
+      
+      await fetchUsedParts(editingOrder.id);
+      await fetchInventoryItems();
+      
+      setTimeout(() => setSuccessMsg(null), 3500);
+    } catch (err: any) {
+      console.error('Error adding piece:', err);
+      setError(err.message || 'Erro ao registrar peça na OS.');
+    } finally {
+      setLoadingParts(false);
+    }
+  }
+
+  async function handleRemovePart(part: UsedPart) {
+    if (!editingOrder) return;
+    if (!confirm(`Deseja devolver a peça "${part.part_name}" de volta ao estoque e removê-la da OS?`)) return;
+
+    setError(null);
+    setLoadingParts(true);
+
+    try {
+      const { error: deleteErr } = await supabase
+        .from('used_parts')
+        .delete()
+        .eq('id', part.id);
+      if (deleteErr) throw deleteErr;
+
+      let parsedCode = '';
+      const codeMatch = part.part_name.match(/^\[(.*?)\]/);
+      if (codeMatch && codeMatch[1]) {
+        parsedCode = codeMatch[1].trim();
+      }
+
+      const { data: invItems, error: queryErr } = await supabase
+        .from('inventory')
+        .select('*');
+      
+      if (!queryErr && invItems) {
+        const matchedItem = invItems.find(i => 
+          i.code.toUpperCase() === parsedCode.toUpperCase() || 
+          part.part_name.includes(i.name)
+        );
+
+        if (matchedItem) {
+          const returnedQty = matchedItem.quantity + part.quantity;
+          await supabase
+            .from('inventory')
+            .update({ quantity: returnedQty })
+            .eq('id', matchedItem.id);
+
+          const historyLogPayload = {
+            item_id: matchedItem.id,
+            item_code: matchedItem.code,
+            item_name: matchedItem.name,
+            type: 'entrada',
+            quantity: part.quantity,
+            reason: `Devolvido/Removido da OS #${editingOrder.id} - ${editingOrder.title}`,
+            location: matchedItem.location,
+            user_name: profile?.full_name || 'Técnico Especialista',
+            created_at: new Date().toISOString()
+          };
+          await supabase.from('inventory_history').insert([historyLogPayload]);
+        }
+      }
+
+      await updateServiceOrderTotalPartsValue(editingOrder.id);
+
+      setSuccessMsg('Peça devolvida ao estoque!');
+      await fetchUsedParts(editingOrder.id);
+      await fetchInventoryItems();
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      console.error('Error removing piece:', err);
+      setError(err.message || 'Erro ao devolver peça ao estoque.');
+    } finally {
+      setLoadingParts(false);
     }
   }
 
@@ -1118,6 +1349,142 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* ——— TAB: PEÇAS (USED PARTS) ——— */}
+              {activeTab === 'parts' && isEditing && (
+                <div className="p-4 md:p-6 space-y-6">
+                  
+                  {/* Title & Desc */}
+                  <div>
+                    <h4 className="text-sm font-black text-white uppercase tracking-tight flex items-center gap-2">
+                      <ClipboardList size={16} className="text-[#caf300]" />
+                      Peças Usadas nesta Ordem de Serviço
+                    </h4>
+                    <p className="text-[10px] text-[#c5c9ac] mt-0.5 uppercase font-['JetBrains_Mono']">
+                      Nesta aba você lança as peças consumidas que reduzem saldo físico em tempo real
+                    </p>
+                  </div>
+
+                  {/* Add Part Form */}
+                  {!isReadOnly && (
+                    <div className="p-4 bg-black/30 border border-[#444932] rounded-xl space-y-4">
+                      <span className="text-[10px] font-extrabold text-[#caf300] tracking-widest uppercase font-['JetBrains_Mono'] block">
+                        Adicionar Peça Consumida
+                      </span>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="md:col-span-2">
+                          <label className="block text-[9px] font-black uppercase text-[#c5c9ac] tracking-wider mb-1.5 font-['JetBrains_Mono']">
+                            Selecionar Peça em Estoque
+                          </label>
+                          <select
+                            value={selectedPartId}
+                            onChange={(e) => setSelectedPartId(e.target.value)}
+                            className="w-full bg-[#0c0f0f] border border-[#444932] text-xs font-bold text-white rounded-xl px-3 py-2 uppercase font-['JetBrains_Mono'] outline-none focus:border-[#caf300]"
+                          >
+                            <option value="">Selecione a Peça...</option>
+                            {inventoryItems.map(item => (
+                              <option key={item.id} value={item.id} disabled={item.quantity === 0}>
+                                [{item.code}] {item.name} - ({item.quantity} U disponíveis {item.quantity === 0 ? ' - SEM ESTOQUE' : ''})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[9px] font-black uppercase text-[#c5c9ac] tracking-wider mb-1.5 font-['JetBrains_Mono']">
+                            Quantidade Utilizada
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              min="1"
+                              value={partQty}
+                              onChange={(e) => setPartQty(Math.max(1, parseInt(e.target.value) || 1))}
+                              className="w-full bg-[#0c0f0f] border border-[#444932] rounded-xl px-3 py-1.5 text-xs text-white focus:border-[#caf300] outline-none font-bold"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleAddPart}
+                              disabled={loadingParts}
+                              className="bg-[#caf300] text-[#121414] px-4 py-1.5 font-black text-[10px] tracking-widest uppercase rounded-xl hover:brightness-110 shrink-0 flex items-center gap-1"
+                            >
+                              {loadingParts ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
+                              LANÇAR
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Used Parts List */}
+                  <div className="border border-[#444932] rounded-xl overflow-hidden bg-[#161818]">
+                    <div className="p-3 bg-[#1e2020] border-b border-[#444932] flex justify-between items-center text-[10px] font-black uppercase tracking-widest font-['JetBrains_Mono'] text-[#c5c9ac]">
+                      <span>Listagem de consumo para esta OS</span>
+                      <span className="text-[#caf300]">Total itens: {usedParts.length}</span>
+                    </div>
+
+                    {loadingParts && usedParts.length === 0 ? (
+                      <div className="p-8 text-center text-xs text-[#c5c9ac] flex items-center justify-center gap-2 font-['JetBrains_Mono'] uppercase">
+                        <Loader2 className="animate-spin text-[#caf300]" size={14} />
+                        carregando peças...
+                      </div>
+                    ) : usedParts.length === 0 ? (
+                      <div className="p-8 text-center text-xs text-[#c5c9ac] font-['JetBrains_Mono'] uppercase">
+                        Nenhuma peça lançada para este serviço.
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs font-['JetBrains_Mono']">
+                          <thead>
+                            <tr className="bg-black/20 text-[#c5c9ac] text-[9px] uppercase font-bold tracking-widest border-b border-[#444932]">
+                              <th className="px-4 py-2.5">Código / Descrição da Peça</th>
+                              <th className="px-4 py-2.5 text-center">Quantidade</th>
+                              <th className="px-4 py-2.5 text-right">Preço Unit.</th>
+                              <th className="px-4 py-2.5 text-right">Subtotal</th>
+                              {!isReadOnly && <th className="px-4 py-2.5 text-right">Ações</th>}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#444932]/60">
+                            {usedParts.map((part) => {
+                              const sub = part.quantity * (part.unit_price || 0);
+                              return (
+                                <tr key={part.id} className="hover:bg-black/10">
+                                  <td className="px-4 py-3 uppercase text-white font-medium">{part.part_name}</td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span className="bg-emerald-950/80 text-emerald-300 font-extrabold px-2 py-0.5 rounded border border-emerald-900/40">
+                                      {part.quantity} U
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-right text-gray-300">
+                                    R$ {(part.unit_price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="px-4 py-3 text-right text-[#caf300] font-black">
+                                    R$ {sub.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  </td>
+                                  {!isReadOnly && (
+                                    <td className="px-4 py-3 text-right">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemovePart(part)}
+                                        className="text-[#ffb4ab] hover:text-red-500 bg-red-950/20 border border-red-900/30 font-bold px-2 py-1 rounded hover:scale-105 transition-all text-[10px]"
+                                      >
+                                        REMOVER / DEVOLVER
+                                      </button>
+                                    </td>
+                                  )}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
                 </div>
               )}
 

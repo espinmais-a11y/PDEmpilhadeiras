@@ -162,6 +162,136 @@ const seedInitialDataIfNeeded = () => {
         created_at: new Date().toISOString()
       }
     ],
+    inventory: [
+      {
+        id: 'i1',
+        code: 'FIL-H10',
+        name: 'Filtro de Retorno Hidráulico Hyster',
+        category: 'Filtros',
+        location: 'Recebimento - 10500',
+        quantity: 15,
+        unit_price: 135.00,
+        min_stock: 5,
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'i2',
+        code: 'PNE-SUP10',
+        name: 'Pneu Maciço Superelástico 6.50-10 Yale',
+        category: 'Pneus',
+        location: 'Recebimento - 10500',
+        quantity: 4,
+        unit_price: 850.00,
+        min_stock: 2,
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'i3',
+        code: 'VET-P8',
+        name: 'Vedação do Mastro Toyota 8FGU25',
+        category: 'Vedação',
+        location: 'Recebimento - 10500',
+        quantity: 42,
+        unit_price: 18.50,
+        min_stock: 10,
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'i4',
+        code: 'OLE-10W30',
+        name: 'Óleo de Motor 10W30 (Litro)',
+        category: 'Lubrificantes',
+        location: 'Estoque Geral',
+        quantity: 120,
+        unit_price: 35.00,
+        min_stock: 20,
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'i5',
+        code: 'ALT-T8',
+        name: 'Alternador Toyota 12V',
+        category: 'Elétrica',
+        location: 'Penal',
+        quantity: 2,
+        unit_price: 1100.00,
+        min_stock: 1,
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'i6',
+        code: 'COR-M3',
+        name: 'Corrente do Mastro Duplex',
+        category: 'Mastro',
+        location: 'Penal',
+        quantity: 3,
+        unit_price: 420.00,
+        min_stock: 2,
+        created_at: new Date().toISOString()
+      }
+    ],
+    inventory_history: [
+      {
+        id: 'h1',
+        item_id: 'i1',
+        item_code: 'FIL-H10',
+        item_name: 'Filtro de Retorno Hidráulico Hyster',
+        type: 'entrada',
+        quantity: 15,
+        reason: 'Origem: Furo de estoque da Penal (Erro PCP)',
+        location: 'Recebimento - 10500',
+        user_name: 'SISTEMA (PCP)',
+        created_at: new Date(Date.now() - 3600000 * 24).toISOString()
+      },
+      {
+        id: 'h2',
+        item_id: 'i2',
+        item_code: 'PNE-SUP10',
+        item_name: 'Pneu Maciço Superelástico 6.50-10 Yale',
+        type: 'entrada',
+        quantity: 4,
+        reason: 'Origem: Furo de estoque da Penal (Erro PCP)',
+        location: 'Recebimento - 10500',
+        user_name: 'SISTEMA (PCP)',
+        created_at: new Date(Date.now() - 3600000 * 24).toISOString()
+      },
+      {
+        id: 'h3',
+        item_id: 'i3',
+        item_code: 'VET-P8',
+        item_name: 'Vedação do Mastro Toyota 8FGU25',
+        type: 'entrada',
+        quantity: 42,
+        reason: 'Origem: Furo de estoque da Penal (Erro PCP)',
+        location: 'Recebimento - 10500',
+        user_name: 'SISTEMA (PCP)',
+        created_at: new Date(Date.now() - 3600000 * 24).toISOString()
+      }
+    ],
+    inventory_entries: [
+      {
+        id: 'ent-1',
+        date: '2026-06-05',
+        supplier: 'DISTRIBUIDORA PEÇAS INDUSTRIAL S.A.',
+        item_code: 'FIL-H10',
+        item_name: 'Filtro de Retorno Hidráulico Hyster',
+        quantity: 10,
+        invoice_number: 'NF-10254',
+        user_name: 'RAONIESPIN',
+        created_at: new Date(Date.now() - 3600000 * 24 * 3).toISOString()
+      },
+      {
+        id: 'ent-2',
+        date: '2026-06-08',
+        supplier: 'IMPORTS INDUSTRIAL LTDA',
+        item_code: 'PNE-SUP10',
+        item_name: 'Pneu Maciço Superelástico 6.50-10 Yale',
+        quantity: 4,
+        invoice_number: 'NF-50493',
+        user_name: 'RAONIESPIN',
+        created_at: new Date(Date.now() - 3600000 * 24).toISOString()
+      }
+    ],
     profiles: []
   };
 

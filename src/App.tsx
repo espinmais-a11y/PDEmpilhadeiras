@@ -14,6 +14,7 @@ import { UserManagement } from './pages/UserManagement';
 import { FinancialPanel } from './pages/FinancialPanel';
 import { Customers } from './pages/Customers';
 import { Machines } from './pages/Machines';
+import { Estoque } from './pages/Estoque';
 import { Layout } from './components/Layout';
 
 export default function App() {
@@ -31,6 +32,7 @@ export default function App() {
               <Route path="/os" element={<ServiceOrders />} />
               <Route path="/customers" element={<Customers />} />
               <Route path="/machines" element={<Machines />} />
+              <Route path="/estoque" element={<Estoque />} />
               
               {/* Admin Only */}
               <Route element={<AdminRoute />}>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Customer } from '../types';
-import { Users, Search, Plus, MapPin, Phone, Mail, Loader2, X, ChevronRight, Edit3, Forklift, Gauge, Activity } from 'lucide-react';
+import { Users, Search, Plus, MapPin, Phone, Mail, Loader2, X, ChevronRight, Edit3, Forklift, Gauge, Activity, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '../context/AuthContext';
 import { Machine } from '../types';
@@ -35,6 +35,41 @@ export function Customers() {
   });
 
   const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteCustomer = async () => {
+    if (!editingId || !isAdmin) return;
+    if (!isDeleting) {
+      setIsDeleting(true);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const { error: deleteError } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', editingId);
+
+      if (deleteError) {
+        if (deleteError.message.includes('foreign key')) {
+          throw new Error('Não é possível excluir este cliente pois possui equipamentos ou ordens de serviço vinculados.');
+        }
+        throw deleteError;
+      }
+
+      setShowModal(false);
+      setIsDeleting(false);
+      fetchCustomers();
+    } catch (err: any) {
+      console.error('[Customers] Delete error:', err);
+      setError(err.message || 'Erro ao excluir cliente. Verifique dependências.');
+      setIsDeleting(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const cep = formData.cep.replace(/\D/g, '');
@@ -87,6 +122,7 @@ export function Customers() {
 
   const handleEdit = (customer: Customer) => {
     if (!isAdmin) return;
+    setIsDeleting(false);
     setEditingId(customer.id);
     setFormData({
       name: customer.name || '',
@@ -106,6 +142,7 @@ export function Customers() {
   };
 
   const handleNew = () => {
+    setIsDeleting(false);
     setEditingId(null);
     setFormData({
       name: '',
@@ -444,7 +481,23 @@ export function Customers() {
                     </div>
                  </div>
 
-                 <div className="pt-6 flex gap-4">
+                 <div className="pt-6 flex flex-col sm:flex-row gap-4">
+                    {editingId && isAdmin && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteCustomer}
+                        disabled={loading}
+                        className={clsx(
+                          "py-4 px-6 border font-bold text-xs tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer",
+                          isDeleting 
+                            ? "bg-[#93000a] text-white border-[#f1554c] animate-pulse" 
+                            : "border-red-500/50 text-red-500 hover:bg-red-500/10"
+                        )}
+                      >
+                        <Trash2 size={15} />
+                        {isDeleting ? 'CLIQUE PARA EXCLUIR' : 'EXCLUIR'}
+                      </button>
+                    )}
                     <button 
                       type="button"
                       onClick={() => setShowModal(false)}
