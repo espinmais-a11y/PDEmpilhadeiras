@@ -1,0 +1,6 @@
+{
+  "name": "PD Manutenção",
+  "description": "Sistema de gestão e ordens de serviço de manutenção de empilhadeiras com foco em acessibilidade e transição para Firebase.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
