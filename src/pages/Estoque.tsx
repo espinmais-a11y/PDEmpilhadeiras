@@ -542,6 +542,7 @@ export function Estoque() {
   const totalStockValue = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
   const valIn10500 = itemsIn10500.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
   const totalEntriesLaunched = entries.reduce((sum, ent) => sum + ent.quantity, 0);
+  const totalPhysicalStock = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-500">
@@ -601,80 +602,49 @@ export function Estoque() {
       )}
 
       {/* Stats Summary Bento Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        {/* Total stock state card */}
-        <div className="bg-[#1e2020] border border-[#444932] rounded-xl p-5 relative overflow-hidden group">
+        {/* Total material stock quantity card */}
+        <div className="bg-[#1e2020] border border-[#444932] rounded-2xl p-6 relative overflow-hidden group">
           <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 opacity-5 group-hover:scale-110 transition-transform">
-            <Boxes size={120} className="text-white" />
+            <Boxes size={120} className="text-[#caf300]" />
           </div>
-          <p className="text-[10px] font-bold font-['JetBrains_Mono'] text-[#c5c9ac] tracking-widest uppercase">Valor Estimado do Estoque</p>
-          <p className="text-2xl font-black text-white italic tracking-tight mt-2">
-            R$ {totalStockValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          <p className="text-[10px] font-bold font-['JetBrains_Mono'] text-[#c5c9ac] tracking-widest uppercase">Saldo Total em Estoque</p>
+          <p className="text-3xl font-black text-white italic tracking-tight mt-2 font-['JetBrains_Mono']">
+            {totalPhysicalStock} <span className="text-xs not-italic font-bold text-[#c5c9ac] tracking-normal uppercase">Unidades</span>
           </p>
           <div className="flex items-center gap-2 mt-4 text-[11px] text-[#c5c9ac]">
-            <span className="font-bold text-[#caf300]">{totalItems}</span> códigos ativos no catálogo
+            Valor estimado: <span className="font-bold text-[#caf300]">R$ {totalStockValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
           </div>
         </div>
 
-        {/* Total inputs launched card */}
-        <div className="bg-[#1e2020] border border-[#444932] rounded-xl p-5 relative overflow-hidden group">
+        {/* Active Catalog SKUs count card */}
+        <div className="bg-[#1e2020] border border-[#444932] rounded-2xl p-6 relative overflow-hidden group">
           <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 opacity-5">
-            <Truck size={120} className="text-[#caf300]" />
+            <FileText size={120} className="text-white" />
           </div>
-          <p className="text-[10px] font-bold font-['JetBrains_Mono'] text-[#caf300] tracking-widest uppercase">Total Compras via NF</p>
-          <p className="text-2xl font-black text-white italic tracking-tight mt-2">
-            {totalEntriesLaunched} Unidades
+          <p className="text-[10px] font-bold font-['JetBrains_Mono'] text-[#c5c9ac] tracking-widest uppercase">Códigos Ativos no Catálogo</p>
+          <p className="text-3xl font-black text-[#caf300] italic tracking-tight mt-2 font-['JetBrains_Mono']">
+            {totalItems} <span className="text-xs not-italic font-bold text-[#c5c9ac] tracking-normal uppercase">SKUs</span>
           </p>
           <div className="flex items-center gap-2 mt-4 text-[11px] text-[#c5c9ac]">
-            Lançamentos fiscais: <span className="font-bold text-white">{entries.length} NFs</span>
-          </div>
-        </div>
-
-        {/* 10500 Location card */}
-        <div className="bg-[#1e2020] border border-[#444932] rounded-xl p-5 relative overflow-hidden group">
-          <p className="text-[10px] font-bold font-['JetBrains_Mono'] text-[#ffbf00] tracking-widest uppercase flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#ffbf00] inline-block animate-pulse"></span>
-            Recebimento - 10500
-          </p>
-          <p className="text-2xl font-black text-white italic tracking-tight mt-2">
-            R$ {valIn10500.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-          </p>
-          <div className="flex items-center gap-2 mt-4 text-[11px] text-[#c5c9ac]">
-            Estoque em trânsito/furo: <span className="font-bold text-[#ffbf00]">{itemsIn10500.length} SKUs</span>
+            Total de categorias: <span className="font-bold text-white">7 ativas</span>
           </div>
         </div>
 
         {/* Low Stock Alerts */}
-        <div className="bg-[#1e2020] border border-[#444932] rounded-xl p-5 relative overflow-hidden group">
+        <div className="bg-[#1e2020] border border-[#444932] rounded-2xl p-6 relative overflow-hidden group">
+          <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 opacity-5">
+            <AlertTriangle size={120} className="text-red-400" />
+          </div>
           <p className="text-[10px] font-bold font-['JetBrains_Mono'] text-red-400 tracking-widest uppercase">Estoque de Segurança Atingido</p>
-          <p className="text-2xl font-black text-white italic tracking-tight mt-2">
-            {lowStockCount} Itens
+          <p className="text-3xl font-black text-white italic tracking-tight mt-2 font-['JetBrains_Mono']">
+            {lowStockCount} <span className="text-xs not-italic font-bold text-red-400 tracking-normal uppercase">Itens</span>
           </p>
-          <div className="flex items-center gap-2 mt-4 text-[11px] text-red-300">
+          <div className="flex items-center gap-2 mt-4 text-[11px] text-red-400">
             Necessitam de novas compras urgentes
           </div>
         </div>
-      </div>
-
-      {/* Quick context explanation helper */}
-      <div className="bg-[#ffbf00]/10 border border-[#ffbf00]/30 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
-        <div className="space-y-1">
-          <span className="font-extrabold uppercase font-['JetBrains_Mono'] text-[#ffbf00] tracking-wider block">ℹ️ Alinhamento de Saldo - Furo de Estoque da Penal</span>
-          <p className="text-[#c5c9ac] leading-relaxed">
-            Ordens originadas por furo de estoque no setor <strong>Penal</strong> geraram saldos divergentes no estoque temporário local <strong>Recebimento - 10500</strong>. 
-            Como as peças não existem mais fisicamente, você deve zerar estes saldos usando o botão <strong className="text-white">"Zerar Saldo"</strong> em cada item ao lado ou registrar novas entradas físicas correspondentes.
-          </p>
-        </div>
-        <button
-          onClick={() => {
-            setSelectedLocation('Recebimento - 10500');
-            setActiveTab('items');
-          }}
-          className="bg-[#ffbf00] hover:bg-[#ffcf33] text-[#121414] px-4 py-2 text-[10px] font-black tracking-widest uppercase rounded-lg shrink-0"
-        >
-          Filtrar Loc. 10500
-        </button>
       </div>
 
       {/* Tabs selector */}
