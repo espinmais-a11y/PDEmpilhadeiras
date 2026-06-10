@@ -129,6 +129,16 @@ const seedInitialDataIfNeeded = () => {
     ],
     customers: [
       {
+        id: 'c-pd',
+        name: 'PD Empilhadeiras',
+        tax_id: '00.000.000/0001-00',
+        contact_email: 'contato@pdempilhadeiras.com.br',
+        phone: '(11) 5555-5555',
+        whatsapp: '(11) 95555-5555',
+        terms_accepted: true,
+        created_at: new Date().toISOString()
+      },
+      {
         id: 'c1',
         name: 'Logística Expressa S.A.',
         tax_id: '12.345.678/0001-99',
@@ -310,6 +320,19 @@ const seedInitialDataIfNeeded = () => {
           await setDoc(doc(db, col, item.id), item);
         } catch (e) {}
       });
+    } else if (col === 'customers') {
+      try {
+        const existing = JSON.parse(localStorage.getItem(key) || '[]');
+        const hasPD = existing.some((x: any) => x.id === 'c-pd' || x.name?.toUpperCase().includes('PD EMPILHADEIRAS'));
+        if (!hasPD) {
+          const pdItem = items.find((x: any) => x.id === 'c-pd');
+          if (pdItem) {
+            existing.push(pdItem);
+            localStorage.setItem(key, JSON.stringify(existing));
+            setDoc(doc(db, 'customers', 'c-pd'), pdItem).catch(() => {});
+          }
+        }
+      } catch (e) {}
     }
   });
 };

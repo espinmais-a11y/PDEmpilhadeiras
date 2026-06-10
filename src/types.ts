@@ -182,4 +182,19 @@ export interface EmailLog {
   sent_at: string;
 }
 
+export type RentalStatus = 'Active' | 'Completed' | 'Pending' | 'Cancelled';
+
+export interface ForkliftRental {
+  id: string;
+  machine_id: string;
+  customer_id: string;
+  start_date: string;
+  end_date: string;
+  monthly_value: number;
+  status: RentalStatus;
+  contract_number: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
 // forced sync

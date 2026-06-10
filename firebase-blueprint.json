@@ -1,0 +1,100 @@
+{
+  "entities": {
+    "Profile": {
+      "title": "Profile",
+      "description": "User profile inside PD Empilhadeiras system",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "full_name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["Admin", "Employee", "Customer"] },
+        "is_approved": { "type": "boolean" },
+        "avatar_url": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "role", "is_approved"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Customer registered in PD Empilhadeiras",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "tax_id": { "type": "string" },
+        "contact_email": { "type": "string" },
+        "phone": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "cep": { "type": "string" },
+        "street": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "terms_accepted": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name"]
+    },
+    "Machine": {
+      "title": "Machine",
+      "description": "Forklift (Machine) inside the fleet",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customer_id": { "type": "string" },
+        "brand": { "type": "string" },
+        "model": { "type": "string" },
+        "serial_number": { "type": "string" },
+        "internal_id": { "type": "string" },
+        "mfg_year": { "type": "integer" },
+        "energy_type": { "type": "string", "enum": ["GLP", "Diesel", "Eletrica"] },
+        "battery_model": { "type": "string" },
+        "charger_model": { "type": "string" },
+        "load_capacity_tons": { "type": "number" },
+        "mast_type": { "type": "string", "enum": ["Simplex", "Duplex", "Triplex"] },
+        "max_elevation_meters": { "type": "number" },
+        "current_hour_meter": { "type": "number" },
+        "daily_usage_avg_hours": { "type": "number" },
+        "status": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "customer_id", "brand", "model", "serial_number"]
+    },
+    "ForkliftRental": {
+      "title": "ForkliftRental",
+      "description": "Forklift rental contract mapping",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "machine_id": { "type": "string" },
+        "customer_id": { "type": "string" },
+        "start_date": { "type": "string", "format": "date" },
+        "end_date": { "type": "string", "format": "date" },
+        "monthly_value": { "type": "number" },
+        "status": { "type": "string", "enum": ["Active", "Completed", "Pending", "Cancelled"] },
+        "contract_number": { "type": "string" },
+        "notes": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "machine_id", "customer_id", "start_date", "end_date", "monthly_value", "status"]
+    }
+  },
+  "firestore": {
+    "/profiles/{userId}": {
+      "schema": "Profile",
+      "description": "User profiles and permissions collection"
+    },
+    "/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Customers registry collection"
+    },
+    "/machines/{machineId}": {
+      "schema": "Machine",
+      "description": "Forklifts registry collection"
+    },
+    "/rentals/{rentalId}": {
+      "schema": "ForkliftRental",
+      "description": "Forklift rental contracts collection"
+    }
+  }
+}

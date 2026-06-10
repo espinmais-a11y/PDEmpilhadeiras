@@ -86,5 +86,10 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
     }
+    
+    // Coleção de contratos de locação (rentals)
+    match /rentals/{rentalId} {
+      allow read, write: if isSignedIn();
+    }
   }
 }

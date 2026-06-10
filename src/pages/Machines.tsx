@@ -46,6 +46,8 @@ export function Machines() {
   const [selectedMachineForDetails, setSelectedMachineForDetails] = useState<Machine | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [filterOwnOnly, setFilterOwnOnly] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -231,6 +233,29 @@ export function Machines() {
     }
   };
 
+  const filteredMachines = machines.filter((machine) => {
+    const isOwn = machine.customer_id === 'c-pd' || 
+      customers.find(c => c.id === machine.customer_id)?.name?.toUpperCase().includes('PD EMPILHADEIRAS');
+
+    if (filterOwnOnly && !isOwn) {
+      return false;
+    }
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const clientName = customers.find(c => c.id === machine.customer_id)?.name?.toLowerCase() || '';
+      return (
+        machine.brand.toLowerCase().includes(q) ||
+        machine.model.toLowerCase().includes(q) ||
+        machine.serial_number.toLowerCase().includes(q) ||
+        (machine.internal_id || '').toLowerCase().includes(q) ||
+        clientName.includes(q)
+      );
+    }
+
+    return true;
+  });
+
   return (
     <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -247,75 +272,118 @@ export function Machines() {
         </button>
       </div>
 
+      {/* Filtros e Busca */}
+      <div className="flex flex-col md:flex-row gap-4 bg-[#1e2020] border border-[#444932] p-4 rounded-2xl select-none">
+        <div className="flex-1 flex items-center bg-[#0c0f0f] border border-[#444932] rounded-xl px-4 py-2.5">
+          <Search size={16} className="text-[#c5c9ac] mr-2" />
+          <input
+            type="text"
+            placeholder="BUSCAR POR MARCA, MODELO, NÚMERO DE SÉRIE, PREFIXO..."
+            className="bg-transparent border-none focus:ring-0 text-xs font-bold font-['JetBrains_Mono'] text-[#e2e2e2] w-full placeholder-[#c5c9ac]/40 outline-none"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="text-[#c5c9ac] hover:text-white transition-colors">
+              <X size={16} />
+            </button>
+          )}
+        </div>
+        
+        <button
+          onClick={() => setFilterOwnOnly(!filterOwnOnly)}
+          className={clsx(
+            "px-6 py-2.5 rounded-xl border font-bold text-xs tracking-widest uppercase transition-all duration-200 flex items-center gap-2 shadow-sm whitespace-nowrap",
+            filterOwnOnly 
+              ? "bg-[#caf300] text-[#121414] border-[#caf300]" 
+              : "bg-[#121414] text-[#c5c9ac] border-[#444932] hover:text-[#caf300] hover:border-[#caf300]/50"
+          )}
+        >
+          <Forklift size={16} />
+          {filterOwnOnly ? "Exibindo: Frota Própria" : "Frota Própria"}
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {machines.map((machine) => (
-          <div 
-            key={machine.id} 
-            className={clsx(
-              "bg-[#1e2020] border rounded-2xl overflow-hidden shadow-xl hover:border-[#caf300]/50 transition-all p-6 space-y-6 group relative",
-              machine.status === 'Maintenance' ? 'border-orange-500/50 bg-orange-500/5' : 'border-[#444932]'
-            )}
-          >
-             {machine.status === 'Maintenance' && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-orange-500 text-[#121414] px-4 py-1 rounded-b-lg text-[8px] font-black tracking-[0.2em] flex items-center gap-1 shadow-lg">
-                   <Wrench size={10} /> EM MANUTENÇÃO
-                </div>
-             )}
-             <div className="flex justify-between items-start">
-               <div className="w-12 h-12 bg-[#caf300]/10 rounded-2xl flex items-center justify-center text-[#caf300] border border-[#caf300]/20">
-                 <Forklift size={24} />
-               </div>
-               {machine.status !== 'Maintenance' && (
-                 <span className={clsx(
-                   "text-[9px] font-black tracking-widest px-2 py-1 rounded-lg border flex items-center gap-1",
-                   machine.status === 'Operational' ? 'bg-[#caf300]/10 text-[#caf300] border-[#caf300]/30' : 
-                   'bg-[#93000a]/10 text-[#ffb4ab] border-[#ffb4ab]/30'
-                 )}>
-                   {machine.status === 'Operational' ? 'OPERACIONAL' : 'FORA DE SERVIÇO'}
-                 </span>
+        {filteredMachines.map((machine) => {
+          const isOwn = machine.customer_id === 'c-pd' || 
+            customers.find(c => c.id === machine.customer_id)?.name?.toUpperCase().includes('PD EMPILHADEIRAS');
+
+          return (
+            <div 
+              key={machine.id} 
+              className={clsx(
+                "bg-[#1e2020] border rounded-2xl overflow-hidden shadow-xl hover:border-[#caf300]/50 transition-all p-6 space-y-6 group relative",
+                machine.status === 'Maintenance' ? 'border-orange-500/50 bg-orange-500/5' : 'border-[#444932]'
+              )}
+            >
+               {machine.status === 'Maintenance' && (
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-orange-500 text-[#121414] px-4 py-1 rounded-b-lg text-[8px] font-black tracking-[0.2em] flex items-center gap-1 shadow-lg">
+                     <Wrench size={10} /> EM MANUTENÇÃO
+                  </div>
                )}
-             </div>
-
-             <div>
-               <div className="flex justify-between items-start mb-1">
-                 <h3 className="text-xl font-black italic text-white tracking-tighter uppercase leading-none">{machine.brand} {machine.model}</h3>
-                 <span className="text-[9px] font-bold text-blue-400 px-2 py-1 bg-blue-400/10 border border-blue-400/20 rounded-lg tracking-widest uppercase whitespace-nowrap">
-                   {customers.find(c => c.id === machine.customer_id)?.name.split(' ')[0] || '---'}
-                 </span>
+               <div className="flex justify-between items-start">
+                 <div className="w-12 h-12 bg-[#caf300]/10 rounded-2xl flex items-center justify-center text-[#caf300] border border-[#caf300]/20">
+                   <Forklift size={24} />
+                 </div>
+                 {machine.status !== 'Maintenance' && (
+                   <span className={clsx(
+                     "text-[9px] font-black tracking-widest px-2 py-1 rounded-lg border flex items-center gap-1",
+                     machine.status === 'Operational' ? 'bg-[#caf300]/10 text-[#caf300] border-[#caf300]/30' : 
+                     'bg-[#93000a]/10 text-[#ffb4ab] border-[#ffb4ab]/30'
+                   )}>
+                     {machine.status === 'Operational' ? 'OPERACIONAL' : 'FORA DE SERVIÇO'}
+                   </span>
+                 )}
                </div>
-               <p className="text-[10px] font-bold font-['JetBrains_Mono'] text-[#c5c9ac] tracking-widest uppercase">SN: {machine.serial_number}</p>
-             </div>
 
-             <div className="grid grid-cols-2 gap-4">
-               <div className="bg-[#0c0f0f] border border-[#444932] p-3 rounded-xl">
-                 <p className="text-[9px] text-[#8f9378] font-bold mb-1 uppercase">Horímetro</p>
-                 <div className="flex items-center gap-2 text-white font-['JetBrains_Mono'] font-bold">
-                    <Gauge size={14} className="text-[#caf300]" />
-                    {machine.current_hour_meter}h
+               <div>
+                 <div className="flex justify-between items-start mb-1 gap-2">
+                   <h3 className="text-xl font-black italic text-white tracking-tighter uppercase leading-none truncate flex-1" title={`${machine.brand} ${machine.model}`}>{machine.brand} {machine.model}</h3>
+                   {isOwn ? (
+                     <span className="text-[9px] font-black tracking-widest px-2 py-1 bg-[#caf300] text-[#121414] rounded-lg border border-[#caf300] whitespace-nowrap">
+                       FROTA PRÓPRIA
+                     </span>
+                   ) : (
+                     <span className="text-[9px] font-bold text-blue-400 px-2 py-1 bg-blue-400/10 border border-blue-400/20 rounded-lg tracking-widest uppercase whitespace-nowrap truncate max-w-[100px]">
+                       {customers.find(c => c.id === machine.customer_id)?.name.split(' ')[0] || '---'}
+                     </span>
+                   )}
+                 </div>
+                 <p className="text-[10px] font-bold font-['JetBrains_Mono'] text-[#c5c9ac] tracking-widest uppercase">SN: {machine.serial_number}</p>
+               </div>
+
+               <div className="grid grid-cols-2 gap-4">
+                 <div className="bg-[#0c0f0f] border border-[#444932] p-3 rounded-xl">
+                   <p className="text-[9px] text-[#8f9378] font-bold mb-1 uppercase">Horímetro</p>
+                   <div className="flex items-center gap-2 text-white font-['JetBrains_Mono'] font-bold">
+                      <Gauge size={14} className="text-[#caf300]" />
+                      {machine.current_hour_meter}h
+                   </div>
+                 </div>
+                 <div className="bg-[#0c0f0f] border border-[#444932] p-3 rounded-xl">
+                   <p className="text-[9px] text-[#8f9378] font-bold mb-1 uppercase">Capacidade</p>
+                   <div className="flex items-center gap-2 text-white font-['JetBrains_Mono'] font-bold">
+                      <Activity size={14} className="text-[#00ffff]" />
+                      {machine.load_capacity_tons}t
+                   </div>
                  </div>
                </div>
-               <div className="bg-[#0c0f0f] border border-[#444932] p-3 rounded-xl">
-                 <p className="text-[9px] text-[#8f9378] font-bold mb-1 uppercase">Capacidade</p>
-                 <div className="flex items-center gap-2 text-white font-['JetBrains_Mono'] font-bold">
-                    <Activity size={14} className="text-[#00ffff]" />
-                    {machine.load_capacity_tons}t
-                 </div>
-               </div>
-             </div>
 
-             <button 
-                onClick={() => setSelectedMachineForDetails(machine)}
-                className="w-full flex items-center justify-center gap-2 text-[10px] font-bold text-[#c5c9ac] py-3 border border-[#444932] rounded-xl hover:bg-[#333535] hover:text-[#caf300] transition-all tracking-widest uppercase"
-             >
-                <Info size={14} /> Detalhes Técnicos
-             </button>
-          </div>
-        ))}
+               <button 
+                  onClick={() => setSelectedMachineForDetails(machine)}
+                  className="w-full flex items-center justify-center gap-2 text-[10px] font-bold text-[#c5c9ac] py-3 border border-[#444932] rounded-xl hover:bg-[#333535] hover:text-[#caf300] transition-all tracking-widest uppercase"
+               >
+                  <Info size={14} /> Detalhes Técnicos
+               </button>
+            </div>
+          );
+        })}
 
-        {machines.length === 0 && !loading && (
+        {filteredMachines.length === 0 && !loading && (
           <div className="col-span-full py-20 text-center border-2 border-dashed border-[#444932] opacity-30 rounded-2xl">
              <Forklift size={48} className="mx-auto mb-4" />
-             <p className="text-sm font-bold uppercase tracking-widest">Nenhum equipamento registrado</p>
+             <p className="text-sm font-bold uppercase tracking-widest">Nenhum ativo correspondente encontrado</p>
           </div>
         )}
       </div>
