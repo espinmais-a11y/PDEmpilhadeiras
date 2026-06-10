@@ -77,6 +77,20 @@
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "machine_id", "customer_id", "start_date", "end_date", "monthly_value", "status"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Supplier registered in system for materials purchase input",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "tax_id": { "type": "string" },
+        "phone": { "type": "string" },
+        "contact_email": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "tax_id"]
     }
   },
   "firestore": {
@@ -95,6 +109,10 @@
     "/rentals/{rentalId}": {
       "schema": "ForkliftRental",
       "description": "Forklift rental contracts collection"
+    },
+    "/suppliers/{supplierId}": {
+      "schema": "Supplier",
+      "description": "Suppliers registry collection"
     }
   }
 }

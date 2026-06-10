@@ -197,4 +197,13 @@ export interface ForkliftRental {
   created_at: string;
 }
 
+export interface Supplier {
+  id: string;
+  name: string;
+  tax_id: string;
+  phone: string | null;
+  contact_email: string | null;
+  created_at: string;
+}
+
 // forced sync

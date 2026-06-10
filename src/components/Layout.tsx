@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Wrench, ClipboardList, Users, Banknote, LogOut, Settings, Bell, Search, Forklift, RefreshCw, Menu, X, Boxes, Clipboard } from 'lucide-react';
+import { LayoutDashboard, Wrench, ClipboardList, Users, Banknote, LogOut, Settings, Bell, Search, Forklift, RefreshCw, Menu, X, Boxes, Clipboard, Truck, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { clsx } from 'clsx';
@@ -46,6 +46,8 @@ export function Layout() {
     { to: '/machines', icon: Forklift, label: 'FROTA' },
     { to: '/rentals', icon: Clipboard, label: 'LOCAÇÕES' },
     { to: '/estoque', icon: Boxes, label: 'ESTOQUE' },
+    { to: '/entradas', icon: FileSpreadsheet, label: 'ENTRADA DE MATERIAIS' },
+    { to: '/fornecedores', icon: Truck, label: 'FORNECEDORES' },
     ...(isAdmin ? [
       { to: '/finance', icon: Banknote, label: 'PAINEL FINANCEIRO' },
     ] : []),

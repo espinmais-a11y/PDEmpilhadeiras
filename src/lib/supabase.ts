@@ -308,7 +308,11 @@ const seedInitialDataIfNeeded = () => {
         created_at: new Date(Date.now() - 3600000 * 24).toISOString()
       }
     ],
-    profiles: []
+    profiles: [],
+    suppliers: [
+      { id: 's1', name: 'DISTRIBUIDORA PEÇAS INDUSTRIAL S.A.', tax_id: '11.222.333/0001-44', phone: '(11) 2222-3333', contact_email: 'vendas@distribuidoraparts.com.br', created_at: new Date().toISOString() },
+      { id: 's2', name: 'IMPORTS INDUSTRIAL LTDA', tax_id: '22.333.444/0001-55', phone: '(11) 3333-4444', contact_email: 'contato@importsindustrial.com.br', created_at: new Date().toISOString() }
+    ]
   };
 
   Object.entries(seeds).forEach(([col, items]) => {

@@ -42,7 +42,7 @@ export function Estoque() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'Admin' || profile?.role === 'admin';
 
-  const [activeTab, setActiveTab] = useState<'items' | 'entradas' | 'history'>('items');
+  const [activeTab, setActiveTab ] = useState<'items' | 'catalog' | 'history'>('items');
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [history, setHistory] = useState<InventoryHistory[]>([]);
   const [entries, setEntries] = useState<InventoryEntry[]>([]);
@@ -568,21 +568,17 @@ export function Estoque() {
             <RefreshCw size={16} className={clsx(loading && "animate-spin")} />
           </button>
 
-          {activeTab === 'entradas' ? (
-            <button 
-              onClick={handleOpenEntryModal}
-              className="bg-[#caf300] text-[#121414] px-5 py-3 font-black text-xs tracking-widest flex items-center gap-2 hover:brightness-110 shadow-lg rounded-xl transition-all"
-            >
-              <Plus size={16} /> LANÇAR NOVA ENTRADA (NF)
-            </button>
-          ) : (
-            <button 
-              onClick={handleOpenNewItem}
-              className="bg-[#282a2b] hover:bg-[#333535] border border-[#444932] text-[#caf300] px-5 py-3 font-black text-xs tracking-widest flex items-center gap-2 rounded-xl transition-all"
-            >
-              <Plus size={16} /> NOVO ITEM EM CATALOGO
-            </button>
-          )}
+          <button 
+            onClick={handleOpenNewItem}
+            className={clsx(
+              "px-5 py-3 font-black text-xs tracking-widest flex items-center gap-2 rounded-xl transition-all shadow-lg",
+              activeTab === 'catalog'
+                ? "bg-[#caf300] text-[#121414] hover:brightness-110"
+                : "bg-[#282a2b] hover:bg-[#333535] border border-[#444932] text-[#caf300]"
+            )}
+          >
+            <Plus size={16} /> CADASTRAR NOVO SKU
+          </button>
         </div>
       </div>
 
@@ -662,15 +658,15 @@ export function Estoque() {
         </button>
 
         <button
-          onClick={() => setActiveTab('entradas')}
+          onClick={() => setActiveTab('catalog')}
           className={clsx(
             "px-6 py-3 font-bold text-xs tracking-widest uppercase font-['JetBrains_Mono'] border-b-2 transition-all flex items-center gap-2",
-            activeTab === 'entradas'
+            activeTab === 'catalog'
               ? "border-[#caf300] text-[#caf300]"
               : "border-transparent text-[#c5c9ac] hover:text-white"
           )}
         >
-          <FileSpreadsheet size={14} /> Entradas de Materiais (NF)
+          <Boxes size={14} /> Cadastro de Produtos (SKU)
         </button>
 
         <button
@@ -886,22 +882,42 @@ export function Estoque() {
         </div>
       )}
 
-      {/* Tab: Entradas (NF Purchase Entries) */}
-      {activeTab === 'entradas' && (
-        <div className="bg-[#1e2020] border border-[#444932] rounded-2xl overflow-hidden shadow-xl">
+      {/* Tab: Cadastro de Produtos (SKU) */}
+      {activeTab === 'catalog' && (
+        <div className="bg-[#1e2020] border border-[#444932] rounded-2xl overflow-hidden shadow-xl animate-fade-in">
+          
+          {/* Filtering Rail */}
           <div className="p-4 border-b border-[#444932] bg-[#282a2b] flex flex-col md:flex-row gap-3 items-center justify-between">
-            <span className="text-xs font-black uppercase text-[#caf300] font-['JetBrains_Mono'] tracking-widest">
-              Lançamentos Fiscais de Entrada de Mercadorias (NF)
-            </span>
-            <div className="flex items-center bg-[#0c0f0f] border border-[#444932] rounded-xl px-3 py-1.5 w-full max-w-sm focus-within:border-[#caf300] transition-all">
-              <Search size={13} className="text-[#c5c9ac] mr-2" />
+            <div className="flex items-center bg-[#0c0f0f] border border-[#444932] rounded-xl px-3 py-2.5 w-full max-w-sm focus-within:border-[#caf300] transition-all">
+              <Search size={14} className="text-[#c5c9ac] mr-2" />
               <input 
                 type="text" 
-                placeholder="FILTRAR FORNECEDOR, SKU OU NOTA FISCAL..."
-                value={entrySearch}
-                onChange={(e) => setEntrySearch(e.target.value)}
-                className="bg-transparent border-none focus:ring-0 text-[11px] text-white w-full uppercase font-bold outline-none" 
+                placeholder="BUSCAR SKU OU DESCRIÇÃO NO CATÁLOGO..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-transparent border-none focus:ring-0 text-xs text-white w-full uppercase font-bold outline-none font-['JetBrains_Mono'] placeholder-[#c5c9ac]/30" 
               />
+            </div>
+
+            <div className="flex flex-wrap gap-2 w-full md:w-auto">
+              {/* Category Select Filter */}
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="bg-[#0c0f0f] border border-[#444932] text-xs font-bold text-[#c5c9ac] rounded-xl px-3 py-2 uppercase font-['JetBrains_Mono'] outline-none"
+              >
+                <option value="ALL">Categoria: Todas</option>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+
+              <button
+                onClick={handleOpenNewItem}
+                className="bg-[#caf300] text-[#121414] text-xs font-black tracking-widest uppercase px-4 py-2 rounded-xl hover:brightness-110 flex items-center gap-1.5 transition-all"
+              >
+                <Plus size={14} /> CADASTRAR SKU
+              </button>
             </div>
           </div>
 
@@ -909,49 +925,69 @@ export function Estoque() {
             {loading ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3 text-[#c5c9ac] font-['JetBrains_Mono'] text-xs uppercase animate-pulse">
                 <Loader2 className="animate-spin text-[#caf300]" size={36} />
-                <span>Carregando notas fiscais e entradas...</span>
+                <span>Carregando catálogo de SKU...</span>
               </div>
-            ) : filteredEntries.length === 0 ? (
-              <div className="py-16 text-center text-xs text-[#c5c9ac] font-['JetBrains_Mono'] uppercase space-y-2">
-                <p>Nenhuma entrada de mercadoria / NF lançada recentemente.</p>
-                <button
-                  type="button"
-                  onClick={handleOpenEntryModal}
-                  className="text-[#caf300] underline font-bold"
-                >
-                  Lançar Entrada de Nota Fiscal agora
-                </button>
+            ) : filteredItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center text-[#c5c9ac] font-['JetBrains_Mono'] text-xs uppercase">
+                <span>Nenhum SKU encontrado com o padrão pesquisado</span>
               </div>
             ) : (
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-[#333535] text-[#c5c9ac] text-[10px] uppercase font-bold tracking-widest border-b border-[#444932]">
-                    <th className="px-6 py-4">Data Lançamento</th>
-                    <th className="px-6 py-4">Nota Fiscal (NF)</th>
-                    <th className="px-6 py-4">Fornecedor</th>
-                    <th className="px-6 py-4">Cód. do Item</th>
+                    <th className="px-6 py-4">Código SKU</th>
                     <th className="px-6 py-4">Descrição da Peça</th>
-                    <th className="px-6 py-4 text-center">Qtd. Fornecida</th>
-                    <th className="px-6 py-4 text-right">Lançado por</th>
+                    <th className="px-6 py-4">Categoria / Local Padrão</th>
+                    <th className="px-6 py-4 text-center">Mínimo Segurança</th>
+                    <th className="px-6 py-4 text-right">Preço de Referência</th>
+                    <th className="px-6 py-4 text-center">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#444932]">
-                  {filteredEntries.map((ent) => (
-                    <tr key={ent.id} className="hover:bg-[#282a2b]/30 text-xs font-['JetBrains_Mono'] transition-colors">
-                      <td className="px-6 py-4 text-[#c5c9ac]">
-                        {ent.date ? new Date(ent.date + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
+                  {filteredItems.map((item) => (
+                    <tr 
+                      key={item.id} 
+                      className="hover:bg-[#282a2b]/60 transition-colors duration-150 text-xs font-['JetBrains_Mono']"
+                    >
+                      <td className="px-6 py-4 font-black text-[#caf300] uppercase">{item.code}</td>
+                      <td className="px-6 py-4 text-[#e2e2e2] font-sans font-bold uppercase tracking-tight">{item.name}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className="bg-[#0c0f0f] border border-[#444932] px-2 py-0.5 rounded text-[9px] text-[#c5c9ac] uppercase font-black">
+                            {item.category}
+                          </span>
+                          <span className="text-[#c5c9ac] text-[10px] flex items-center gap-1 font-sans">
+                            <MapPin size={10} />
+                            {item.location}
+                          </span>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 font-black text-white">{ent.invoice_number}</td>
-                      <td className="px-6 py-4 text-gray-300 font-sans font-semibold uppercase">{ent.supplier}</td>
-                      <td className="px-6 py-4 font-bold text-[#caf300]">{ent.item_code}</td>
-                      <td className="px-6 py-4 text-gray-300 uppercase font-sans font-medium">{ent.item_name}</td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="bg-emerald-950 text-emerald-400 border border-emerald-800 font-extrabold px-2.5 py-0.5 rounded-full">
-                          +{ent.quantity} U
-                        </span>
+                      <td className="px-6 py-4 text-center text-white font-black">
+                        {item.min_stock} U
                       </td>
-                      <td className="px-6 py-4 text-right text-gray-400 font-medium font-sans uppercase">
-                        {ent.user_name}
+                      <td className="px-6 py-4 text-right text-gray-200 font-bold">
+                        R$ {item.unit_price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => handleOpenEditItem(item)}
+                            className="text-xs font-bold text-[#c5c9ac] hover:text-white bg-[#282a2b] hover:bg-[#333535] p-2 rounded-lg transition-all border border-[#444932]"
+                            title="Editar SKU"
+                          >
+                            <Edit3 size={14} />
+                          </button>
+
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleDeleteItem(item.id, item.name)}
+                              className="text-xs font-bold text-[#ffb4ab] hover:text-red-500 bg-[#282a2b] hover:bg-black/40 p-2 rounded-lg transition-all border border-[#444932]"
+                              title="Remover do Catálogo"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

@@ -16,6 +16,8 @@ import { Customers } from './pages/Customers';
 import { Machines } from './pages/Machines';
 import { Rentals } from './pages/Rentals';
 import { Estoque } from './pages/Estoque';
+import { MaterialEntries } from './pages/MaterialEntries';
+import { Suppliers } from './pages/Suppliers';
 import { Layout } from './components/Layout';
 
 export default function App() {
@@ -35,6 +37,8 @@ export default function App() {
               <Route path="/machines" element={<Machines />} />
               <Route path="/rentals" element={<Rentals />} />
               <Route path="/estoque" element={<Estoque />} />
+              <Route path="/entradas" element={<MaterialEntries />} />
+              <Route path="/fornecedores" element={<Suppliers />} />
               
               {/* Admin Only */}
               <Route element={<AdminRoute />}>

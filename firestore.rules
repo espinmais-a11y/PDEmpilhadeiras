@@ -91,5 +91,10 @@ service cloud.firestore {
     match /rentals/{rentalId} {
       allow read, write: if isSignedIn();
     }
+
+    // Coleção de fornecedores (suppliers)
+    match /suppliers/{supplierId} {
+      allow read, write: if isSignedIn();
+    }
   }
 }
