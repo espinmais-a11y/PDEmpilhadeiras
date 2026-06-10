@@ -39,24 +39,45 @@ export function Layout() {
     await refreshProfile();
   };
 
-  const navItems = [
-    { to: '/', icon: LayoutDashboard, label: 'DASHBOARD' },
-    { to: '/os', icon: ClipboardList, label: 'ORDENS DE SERVIÇO' },
-    { to: '/customers', icon: Users, label: 'CLIENTES' },
-    { to: '/machines', icon: Forklift, label: 'FROTA' },
-    { to: '/rentals', icon: Clipboard, label: 'LOCAÇÕES' },
-    { to: '/estoque', icon: Boxes, label: 'ESTOQUE' },
-    { to: '/entradas', icon: FileSpreadsheet, label: 'ENTRADA DE MATERIAIS' },
-    { to: '/fornecedores', icon: Truck, label: 'FORNECEDORES' },
+  const navGroups = [
+    {
+      title: 'OS',
+      items: [
+        { to: '/', icon: LayoutDashboard, label: 'DASHBOARD' },
+        { to: '/os', icon: ClipboardList, label: 'ORDENS DE SERVIÇO' },
+        { to: '/customers', icon: Users, label: 'CLIENTES' },
+        { to: '/machines', icon: Forklift, label: 'FROTA' },
+      ],
+    },
+    {
+      title: 'Locação',
+      items: [
+        { to: '/rentals', icon: Clipboard, label: 'LOCAÇÕES' },
+      ],
+    },
+    {
+      title: 'Suprimentos',
+      items: [
+        { to: '/estoque', icon: Boxes, label: 'ESTOQUE' },
+        { to: '/entradas', icon: FileSpreadsheet, label: 'ENTRADA DE MATERIAIS' },
+        { to: '/fornecedores', icon: Truck, label: 'FORNECEDORES' },
+      ],
+    },
     ...(isAdmin ? [
-      { to: '/finance', icon: Banknote, label: 'PAINEL FINANCEIRO' },
+      {
+        title: 'Admin',
+        items: [
+          { to: '/finance', icon: Banknote, label: 'PAINEL FINANCEIRO' },
+          { to: '/admin', icon: Settings, label: 'ADMINISTRAÇÃO', badge: pendingCount > 0 ? pendingCount : null },
+        ],
+      },
     ] : []),
   ];
 
   return (
     <div className="flex h-screen bg-[#121414] text-[#e2e2e2] font-['IBM_Plex_Sans'] overflow-hidden">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 border-r border-[#444932] bg-[#1e2020] m-4 mr-0 rounded-2xl overflow-hidden">
+      <aside className="hidden md:flex flex-col w-64 border-r border-[#444932] bg-[#1e2020] m-4 mr-0 rounded-2xl overflow-hidden animate-fade-in">
         <div className="p-6">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain drop-shadow-[0_0_8px_rgba(202,243,0,0.4)]" />
@@ -67,45 +88,41 @@ export function Layout() {
           </div>
         </div>
 
-        <nav className="flex-1 px-3 space-y-1">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                clsx(
-                  "flex items-center gap-3 px-4 py-3 text-xs font-bold font-['JetBrains_Mono'] tracking-widest transition-all rounded-lg",
-                  isActive
-                    ? "text-[#121414] bg-[#caf300]"
-                    : "text-[#c5c9ac] hover:bg-[#333535] hover:text-[#caf300]"
-                )
-              }
-            >
-              <item.icon size={18} />
-              {item.label}
-            </NavLink>
-          ))}
-          {isAdmin && (
-            <NavLink
-              to="/admin"
-              className={({ isActive }) =>
-                clsx(
-                  "flex items-center gap-3 px-4 py-3 text-xs font-bold font-['JetBrains_Mono'] tracking-widest transition-all rounded-lg relative",
-                  isActive
-                    ? "text-[#121414] bg-[#caf300]"
-                    : "text-[#c5c9ac] hover:bg-[#333535] hover:text-[#caf300]"
-                )
-              }
-            >
-              <Settings size={18} />
-              ADMINISTRAÇÃO
-              {pendingCount > 0 && (
-                <span className="ml-auto bg-[#ffbf00] text-[#121414] text-[8px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse">
-                  {pendingCount}
+        <nav className="flex-1 px-3 space-y-4 overflow-y-auto">
+          {navGroups.map((group, idx) => (
+            <div key={group.title} className={clsx(idx > 0 && "pt-1")}>
+              <div className="flex items-center gap-2 px-3 py-1 mb-1">
+                <span className="w-1 h-3 bg-[#caf300] rounded-full inline-block opacity-65"></span>
+                <span className="text-[9px] font-black tracking-widest text-[#8f9378] uppercase font-['JetBrains_Mono']">
+                  {group.title}
                 </span>
-              )}
-            </NavLink>
-          )}
+              </div>
+              <div className="space-y-1">
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      clsx(
+                        "flex items-center gap-3 px-4 py-2.5 text-xs font-bold font-['JetBrains_Mono'] tracking-widest transition-all rounded-lg relative",
+                        isActive
+                          ? "text-[#121414] bg-[#caf300]"
+                          : "text-[#c5c9ac] hover:bg-[#333535] hover:text-[#caf300]"
+                      )
+                    }
+                  >
+                    <item.icon size={16} />
+                    <span className="truncate">{item.label}</span>
+                    {item.badge !== undefined && item.badge !== null && (
+                      <span className="ml-auto bg-[#ffbf00] text-[#121414] text-[8px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse">
+                        {item.badge}
+                      </span>
+                    )}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          ))}
         </nav>
 
         <div className="p-6 border-t border-[#444932] flex items-center gap-3">
@@ -176,39 +193,42 @@ export function Layout() {
         {/* Mobile Sidebar Overlay */}
         {isMobileMenuOpen && (
           <div className="md:hidden absolute top-14 inset-x-0 bottom-0 bg-[#121414] z-40 overflow-y-auto">
-            <nav className="flex flex-col p-4 space-y-1">
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={({ isActive }) =>
-                    clsx(
-                      "flex items-center gap-3 px-4 py-4 rounded-xl text-sm font-bold font-['JetBrains_Mono'] tracking-widest transition-all",
-                      isActive
-                        ? "text-[#121414] bg-[#caf300]"
-                        : "text-[#c5c9ac] hover:bg-[#333535] hover:text-[#caf300]"
-                    )
-                  }
-                >
-                  <item.icon size={22} />
-                  {item.label}
-                </NavLink>
-              ))}
-              {isAdmin && (
-                <button 
-                  onClick={() => { navigate('/admin'); setIsMobileMenuOpen(false); }}
-                  className="flex items-center gap-3 px-4 py-4 rounded-xl text-sm font-bold font-['JetBrains_Mono'] tracking-widest text-[#c5c9ac] hover:bg-[#333535] hover:text-[#caf300] transition-all w-full text-left"
-                >
-                  <Settings size={22} />
-                  ADMINISTRAÇÃO
-                  {pendingCount > 0 && (
-                    <span className="ml-auto bg-[#ffbf00] text-[#121414] text-[9px] font-black px-2 py-0.5 rounded-full animate-pulse">
-                      {pendingCount} pendente{pendingCount > 1 ? 's' : ''}
+            <nav className="flex flex-col p-4 space-y-4">
+              {navGroups.map((group) => (
+                <div key={group.title} className="space-y-1">
+                  <div className="flex items-center gap-2 px-4 py-1.5 mb-1">
+                    <span className="w-1 h-3 bg-[#caf300] rounded-full inline-block opacity-60"></span>
+                    <span className="text-[10px] font-black tracking-widest text-[#8f9378] uppercase font-['JetBrains_Mono']">
+                      {group.title}
                     </span>
-                  )}
-                </button>
-              )}
+                  </div>
+                  <div className="space-y-1">
+                    {group.items.map((item) => (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className={({ isActive }) =>
+                          clsx(
+                            "flex items-center gap-3 px-4 py-3.5 rounded-xl text-xs font-bold font-['JetBrains_Mono'] tracking-widest transition-all relative",
+                            isActive
+                              ? "text-[#121414] bg-[#caf300]"
+                              : "text-[#c5c9ac] hover:bg-[#333535] hover:text-[#caf300]"
+                          )
+                        }
+                      >
+                        <item.icon size={20} />
+                        <span className="truncate">{item.label}</span>
+                        {item.badge !== undefined && item.badge !== null && (
+                          <span className="ml-auto bg-[#ffbf00] text-[#121414] text-[9px] font-black px-2 py-0.5 rounded-full animate-pulse">
+                            {item.badge}
+                          </span>
+                        )}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+              ))}
               <button 
                 onClick={handleSignOut} 
                 className="flex items-center gap-3 px-4 py-4 rounded-xl text-sm font-bold font-['JetBrains_Mono'] tracking-widest text-[#ffb4ab] hover:bg-[#333535] transition-all w-full text-left mt-4"
