@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper para verificar se o usuário está autenticado
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Regras padrão de negação para segurança máxima
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Coleção de perfis (profiles) - Permite leitura coletiva por funcionários para vinculação de responsáveis
+    // E escrita apenas no próprio perfil. Admins podem tudo.
+    match /profiles/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (request.auth.uid == userId || exists(/databases/$(database)/documents/profiles/$(request.auth.uid)));
+    }
+
+    // Coleção de clientes (customers)
+    match /customers/{customerId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Coleção de máquinas (machines)
+    match /machines/{machineId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Coleção de ordens de serviço (service_orders)
+    match /service_orders/{orderId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Coleção de respostas de checklist (preventive_checklist_answers)
+    match /preventive_checklist_answers/{answerId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Coleção de fotos adicionais de OS (service_order_photos)
+    match /service_order_photos/{photoId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Peças utilizadas (used_parts)
+    match /used_parts/{partId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Logs de e-mails enviados (email_logs)
+    match /email_logs/{logId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Inventário / Estoque (inventory, inventory_history, inventory_entries)
+    match /inventory/{itemId} {
+      allow read, write: if isSignedIn();
+    }
+    match /inventory_history/{historyId} {
+      allow read, write: if isSignedIn();
+    }
+    match /inventory_entries/{entryId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Tabelas auxiliares e itens estáticos
+    match /brands/{brandId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+    match /models/{modelId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+    match /battery_types/{typeId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+    match /charger_types/{typeId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+    match /preventive_checklist_items/{itemId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+  }
+}

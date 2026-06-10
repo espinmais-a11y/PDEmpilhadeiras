@@ -14,7 +14,8 @@ import {
   setDoc, 
   getDocs, 
   deleteDoc, 
-  updateDoc 
+  updateDoc,
+  getDoc
 } from 'firebase/firestore';
 
 // Fallback configuration using real environment variables if provided
@@ -26,6 +27,8 @@ const firebaseConfig = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "12345678",
   appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:12345678:web:abcdef"
 };
+
+const isDummyConfig = !import.meta.env.VITE_FIREBASE_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY.includes('DummyKey');
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
@@ -58,8 +61,11 @@ const syncToFirestoreAndLocal = async (col: string, id: string, data: any, opera
     } else if (operation === 'delete') {
       await deleteDoc(docRef);
     }
-  } catch (err) {
-    console.warn(`[FirebaseSync] Firestore offline fallback for ${col}/${id}:`, err);
+  } catch (err: any) {
+    console.error(`[FirebaseSync] Firestore write failed for ${col}/${id}:`, err);
+    if (!isDummyConfig) {
+      throw err;
+    }
   }
 };
 
@@ -438,7 +444,39 @@ class QueryBuilder {
         return { data: results, error: null };
       }
 
-      let data = await fetchColData(this.col);
+      const idFilter = this.filters.find(f => f.field === 'id' && f.op === '==');
+      let data: any[] = [];
+
+      if (idFilter) {
+        const docId = idFilter.value;
+        const localKey = `fs_${this.col}`;
+        let singleData: any = null;
+        try {
+          const docSnap = await getDoc(doc(db, this.col, docId));
+          if (docSnap.exists()) {
+            singleData = { ...docSnap.data(), id: docSnap.id };
+            let localCache: any[] = [];
+            try {
+              localCache = JSON.parse(localStorage.getItem(localKey) || '[]');
+            } catch (e) {}
+            localCache = localCache.filter((x: any) => x.id !== docId);
+            localCache.push(singleData);
+            localStorage.setItem(localKey, JSON.stringify(localCache));
+          }
+        } catch (err: any) {
+          console.warn(`[FirebaseSync] Single doc fetch failed for ${this.col}/${docId}:`, err);
+          try {
+            const localCache = JSON.parse(localStorage.getItem(localKey) || '[]');
+            singleData = localCache.find((x: any) => String(x.id).toLowerCase() === String(docId).toLowerCase()) || null;
+          } catch (e) {}
+          if (!isDummyConfig && (err.code === 'permission-denied' || err.message?.includes('permission') || err.message?.includes('key'))) {
+            throw err;
+          }
+        }
+        data = singleData ? [singleData] : [];
+      } else {
+        data = await fetchColData(this.col);
+      }
 
       // Apply In-Memory Filters (Zero Index requirement problems, absolute stability)
       for (const filter of this.filters) {
