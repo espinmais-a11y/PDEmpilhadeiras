@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -17,14 +18,13 @@ import {
 } from 'firebase/firestore';
 
 // Fallback configuration using real environment variables if provided
-const metaEnv = (import.meta as any).env || {};
 const firebaseConfig = {
-  apiKey: metaEnv.VITE_FIREBASE_API_KEY || "AIzaSyDummyKey-ForSandboxUseOnly-123",
-  authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || "pd-manutencao.firebaseapp.com",
-  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID || "pd-manutencao",
-  storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || "pd-manutencao.appspot.com",
-  messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || "12345678",
-  appId: metaEnv.VITE_FIREBASE_APP_ID || "1:12345678:web:abcdef"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDummyKey-ForSandboxUseOnly-123",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "pd-manutencao.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "pd-manutencao",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "pd-manutencao.appspot.com",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "12345678",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:12345678:web:abcdef"
 };
 
 const app = initializeApp(firebaseConfig);
