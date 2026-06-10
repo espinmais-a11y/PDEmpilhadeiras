@@ -77,6 +77,7 @@ export interface Machine {
   current_hour_meter: number;
   daily_usage_avg_hours: number;
   status: string;
+  is_own_fleet?: boolean;
   created_at: string;
 }
 

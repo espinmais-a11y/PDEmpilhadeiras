@@ -96,5 +96,10 @@ service cloud.firestore {
     match /suppliers/{supplierId} {
       allow read, write: if isSignedIn();
     }
+
+    // Coleção de configurações administrativas (admin_settings)
+    match /admin_settings/{settingId} {
+      allow read, write: if isSignedIn();
+    }
   }
 }

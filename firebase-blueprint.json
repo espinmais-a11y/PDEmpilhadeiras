@@ -91,6 +91,18 @@
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "tax_id"]
+    },
+    "AdminSettings": {
+      "title": "AdminSettings",
+      "description": "General system settings such as service hourly rates",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "key": { "type": "string" },
+        "value": { "type": "string" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "key", "value"]
     }
   },
   "firestore": {
@@ -113,6 +125,10 @@
     "/suppliers/{supplierId}": {
       "schema": "Supplier",
       "description": "Suppliers registry collection"
+    },
+    "/admin_settings/{settingId}": {
+      "schema": "AdminSettings",
+      "description": "System settings collection"
     }
   }
 }

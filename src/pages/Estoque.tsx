@@ -1145,8 +1145,9 @@ export function Estoque() {
                     className="w-full bg-[#0c0f0f] border border-[#444932] rounded-xl px-4 py-2 text-xs text-white focus:border-[#caf300] focus:ring-1 focus:ring-[#caf300] outline-none font-bold"
                   >
                     <option value="Estoque Geral">Estoque Geral</option>
-                    <option value="Recebimento - 10500">Recebimento - 10500</option>
-                    <option value="Penal">Penal</option>
+                    {editingItem && itemFormData.location !== 'Estoque Geral' && (
+                      <option value={itemFormData.location}>{itemFormData.location}</option>
+                    )}
                   </select>
                 </div>
 

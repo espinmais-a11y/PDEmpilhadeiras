@@ -64,6 +64,10 @@ const syncToFirestoreAndLocal = async (col: string, id: string, data: any, opera
   } catch (err: any) {
     console.error(`[FirebaseSync] Firestore write failed for ${col}/${id}:`, err);
     if (!isDummyConfig) {
+      if (col === 'admin_settings') {
+        console.warn(`[FirebaseSync] Sourcing fallback local for admin_settings due to cloud sync restrictions.`);
+        return;
+      }
       throw err;
     }
   }

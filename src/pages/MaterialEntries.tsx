@@ -59,7 +59,7 @@ export function MaterialEntries() {
   const [itemQuery, setItemQuery] = useState('');
   const [itemDropdownOpen, setItemDropdownOpen] = useState(false);
 
-  const [quantity, setQuantity] = useState<number>(1);
+  const [quantity, setQuantity] = useState<number | ''>('');
   const [launching, setLaunching] = useState(false);
 
   useEffect(() => {
@@ -127,7 +127,7 @@ export function MaterialEntries() {
     setSupplierQuery('');
     setSelectedItemId('');
     setItemQuery('');
-    setQuantity(1);
+    setQuantity('');
     setError(null);
     setShowForm(true);
   };
@@ -534,8 +534,11 @@ export function MaterialEntries() {
                     step="1"
                     className="auth-input rounded-xl font-['JetBrains_Mono'] text-xs font-bold"
                     placeholder="Ex: 10"
-                    value={quantity || ''}
-                    onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
+                    value={quantity}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setQuantity(val === '' ? '' : Math.max(1, Number(val)));
+                    }}
                   />
                 </div>
 

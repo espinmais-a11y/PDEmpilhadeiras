@@ -40,7 +40,8 @@ export function Machines() {
     max_elevation_meters: 4.5,
     current_hour_meter: 0,
     daily_usage_avg_hours: 0,
-    status: 'Operational'
+    status: 'Operational',
+    is_own_fleet: false
   });
 
   const [selectedMachineForDetails, setSelectedMachineForDetails] = useState<Machine | null>(null);
@@ -134,6 +135,9 @@ export function Machines() {
   const handleEdit = (machine: Machine) => {
     if (profile?.role !== 'Admin' && profile?.role !== 'admin') return;
     setEditingId(machine.id);
+    const isOwn = machine.is_own_fleet || machine.customer_id === 'c-pd' || 
+      customers.find(c => c.id === machine.customer_id)?.name?.toUpperCase().includes('PD EMPILHADEIRAS') || false;
+
     setFormData({
       customer_id: machine.customer_id,
       brand: machine.brand,
@@ -149,7 +153,8 @@ export function Machines() {
       max_elevation_meters: (machine as any).max_elevation_meters || 4.5,
       current_hour_meter: machine.current_hour_meter || 0,
       daily_usage_avg_hours: (machine as any).daily_usage_avg_hours || 0,
-      status: machine.status || 'Operational'
+      status: machine.status || 'Operational',
+      is_own_fleet: isOwn
     });
     setShowModal(true);
     setSelectedMachineForDetails(null);
@@ -172,7 +177,8 @@ export function Machines() {
       max_elevation_meters: 4.5,
       current_hour_meter: 0,
       daily_usage_avg_hours: 0,
-      status: 'Operational'
+      status: 'Operational',
+      is_own_fleet: false
     });
     setShowModal(true);
   };
@@ -214,7 +220,8 @@ export function Machines() {
         max_elevation_meters: 4.5,
         current_hour_meter: 0,
         daily_usage_avg_hours: 0,
-        status: 'Operational'
+        status: 'Operational',
+        is_own_fleet: false
       });
     } catch (err: any) {
       console.error('[Machines] Persistence error:', err);
@@ -234,7 +241,7 @@ export function Machines() {
   };
 
   const filteredMachines = machines.filter((machine) => {
-    const isOwn = machine.customer_id === 'c-pd' || 
+    const isOwn = machine.is_own_fleet || machine.customer_id === 'c-pd' || 
       customers.find(c => c.id === machine.customer_id)?.name?.toUpperCase().includes('PD EMPILHADEIRAS');
 
     if (filterOwnOnly && !isOwn) {
@@ -306,7 +313,7 @@ export function Machines() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredMachines.map((machine) => {
-          const isOwn = machine.customer_id === 'c-pd' || 
+          const isOwn = machine.is_own_fleet || machine.customer_id === 'c-pd' || 
             customers.find(c => c.id === machine.customer_id)?.name?.toUpperCase().includes('PD EMPILHADEIRAS');
 
           return (
@@ -475,12 +482,63 @@ export function Machines() {
                    </div>
                  )}
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Toggle de Frota Própria */}
+                    <div className="col-span-full bg-[#0c0f0f] border border-[#444932] p-4 rounded-2xl flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-black text-white uppercase tracking-widest">Frota Própria</h4>
+                        <p className="text-[10px] text-[#c5c9ac] font-medium mt-1 font-sans">
+                          Marque se esta empilhadeira pertence à frota da própria empresa (PD Empilhadeiras)
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextVal = !formData.is_own_fleet;
+                          let calculatedCustomerId = formData.customer_id;
+                          if (nextVal) {
+                            const pd = customers.find(c => 
+                              c.name?.toUpperCase().includes('PD EMPILHADEIRAS') || 
+                              c.id === 'c-pd'
+                            );
+                            if (pd) {
+                              calculatedCustomerId = pd.id;
+                            }
+                          }
+                          setFormData({
+                            ...formData,
+                            is_own_fleet: nextVal,
+                            customer_id: calculatedCustomerId
+                          });
+                        }}
+                        className={clsx(
+                          "w-12 h-6 rounded-full p-1 transition-colors duration-200 focus:outline-none flex items-center shrink-0",
+                          formData.is_own_fleet ? "bg-[#caf300]" : "bg-[#282a2b] border border-[#444932]"
+                        )}
+                      >
+                        <span
+                          className={clsx(
+                            "w-4 h-4 rounded-full shadow-md transform duration-200 inline-block",
+                            formData.is_own_fleet ? "translate-x-6 bg-[#121414]" : "translate-x-0 bg-[#c5c9ac]"
+                          )}
+                        />
+                      </button>
+                    </div>
+
                     <Field label="Cliente Proprietário" required className="col-span-full">
                        <select 
                          required 
                          className="auth-input rounded-xl"
                          value={formData.customer_id}
-                         onChange={e => setFormData({...formData, customer_id: e.target.value})}
+                         onChange={e => {
+                            const selectedId = e.target.value;
+                            const isPd = selectedId === 'c-pd' || 
+                              customers.find(c => c.id === selectedId)?.name?.toUpperCase().includes('PD EMPILHADEIRAS');
+                            setFormData({
+                              ...formData, 
+                              customer_id: selectedId,
+                              is_own_fleet: !!isPd
+                            });
+                          }}
                        >
                           <option value="">SELECIONAR CLIENTE...</option>
                           {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}

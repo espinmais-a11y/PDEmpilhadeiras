@@ -233,8 +233,8 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
   }
 
   // ——— FORM SUBMIT ———
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(e?: React.FormEvent) {
+    if (e) e.preventDefault();
     if (loading || isReadOnly) return;
 
     // Block finalization if no signature is saved
@@ -784,16 +784,40 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
                 )}
               </div>
               <div className="flex items-center gap-2">
+                {isEditing && !isReadOnly && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({...formData, status: e.target.value as OSStatus})}
+                      className="bg-[#0c0f0f] border border-[#444932] text-[10px] sm:text-xs text-[#caf300] px-2 py-1.5 rounded-xl focus:border-[#caf300] outline-none transition-all font-black tracking-wider uppercase cursor-pointer max-w-[125px] sm:max-w-[180px]"
+                    >
+                      {statusOptions.map(opt => (
+                        <option key={opt.value} value={opt.value} className="text-white font-bold bg-[#1e2020] text-xs">{opt.label}</option>
+                      ))}
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSubmit()}
+                      disabled={loading}
+                      className="bg-[#caf300] text-[#121414] hover:bg-[#b0d400] px-2.5 sm:px-4 py-1.5 rounded-xl font-black text-[10px] sm:text-xs tracking-widest uppercase flex items-center justify-center gap-1 transition-all disabled:opacity-50 shrink-0 cursor-pointer"
+                      title="Salvar alterações"
+                    >
+                      {loading ? <Loader2 className="animate-spin" size={13} /> : <Save size={13} />}
+                      <span>SALVAR</span>
+                    </button>
+                  </div>
+                )}
                 {isEditing && isAdmin && (
                   <button 
                     onClick={handleDelete}
-                    className="text-[#ffb4ab] hover:text-white hover:bg-[#93000a] transition-all p-2 rounded-lg"
+                    className="text-[#ffb4ab] hover:text-white hover:bg-[#93000a] transition-all p-2 rounded-lg shrink-0"
                     title="Excluir OS"
                   >
                     <Trash2 size={18} />
                   </button>
                 )}
-                <button onClick={onClose} className="text-[#c5c9ac] hover:text-white transition-colors p-1">
+                <button onClick={onClose} className="text-[#c5c9ac] hover:text-white transition-colors p-1 shrink-0">
                   <X size={22} />
                 </button>
               </div>
