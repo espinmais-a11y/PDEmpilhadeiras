@@ -316,7 +316,42 @@ export async function sendFinishedOSReport(orderId: string): Promise<{ success: 
       PD MANUTENÇÃO DE EMPILHADEIRAS S.A.
     `;
 
-    // 7. Write email send record to Firestore (persistent logs)
+    // 7. Send real email using Resend API if API Key is provided
+    let emailStatus: 'sent' | 'failed' = 'sent';
+    const apiKey = import.meta.env.VITE_RESEND_API_KEY;
+    const fromEmail = import.meta.env.VITE_RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+
+    if (apiKey) {
+      try {
+        console.log(`[EmailService] Attempting to deliver email via Resend to ${recipient}...`);
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            from: `PD Manutenção <${fromEmail}>`,
+            to: [recipient],
+            subject: subject,
+            html: htmlBody
+          })
+        });
+
+        if (!response.ok) {
+          const errBody = await response.json().catch(() => ({}));
+          throw new Error(errBody.message || `HTTP ${response.status}`);
+        }
+        console.log('[EmailService] Resend email dispatched successfully.');
+      } catch (sendErr: any) {
+        console.error('[EmailService] Failed to send email via Resend:', sendErr);
+        emailStatus = 'failed';
+      }
+    } else {
+      console.log('[EmailService] VITE_RESEND_API_KEY is not defined. Email dispatch simulated (marked as sent).');
+    }
+
+    // 8. Write email send record to Firestore (persistent logs)
     const emailLogPayload: Omit<EmailLog, 'id'> = {
       service_order_id: orderId,
       recipient_email: recipient,
@@ -324,7 +359,7 @@ export async function sendFinishedOSReport(orderId: string): Promise<{ success: 
       subject: subject,
       html_body: htmlBody,
       text_body: textBody,
-      status: 'sent',
+      status: emailStatus,
       sent_at: new Date().toISOString()
     };
 
@@ -342,8 +377,9 @@ export async function sendFinishedOSReport(orderId: string): Promise<{ success: 
     };
 
     return {
-      success: true,
-      data: createdRecord as EmailLog
+      success: emailStatus === 'sent',
+      data: createdRecord as EmailLog,
+      error: emailStatus === 'failed' ? 'Erro de comunicação com o servidor de e-mail (Resend).' : undefined
     };
   } catch (err: any) {
     console.error('[EmailService] Error preparing report:', err);

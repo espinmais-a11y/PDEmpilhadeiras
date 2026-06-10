@@ -621,7 +621,7 @@ export function ServiceOrders() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2 bg-[#0c0f0f] border border-[#444932] p-3.5 rounded-xl font-mono text-[11px] text-[#c5c9ac]">
                   <div>
-                    <span className="text-[#caf300] font-bold">DE:</span> noreply@pdmanutencao.com.br
+                    <span className="text-[#caf300] font-bold">DE:</span> {import.meta.env.VITE_RESEND_FROM_EMAIL || 'onboarding@resend.dev'}
                   </div>
                   <div>
                     <span className="text-[#caf300] font-bold">PARA:</span> {selectedEmailLog.recipient_email}
