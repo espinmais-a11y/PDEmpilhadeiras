@@ -40,7 +40,7 @@ interface InventoryEntry {
 
 export function Estoque() {
   const { profile } = useAuth();
-  const isAdmin = profile?.role === 'Admin' || profile?.role === 'admin';
+  const isAdmin = profile?.role?.toString().toLowerCase().trim() === 'admin';
 
   const [activeTab, setActiveTab ] = useState<'items' | 'catalog' | 'history'>('items');
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -127,6 +127,7 @@ export function Estoque() {
   }
 
   const handleOpenNewItem = () => {
+    if (!isAdmin) return;
     setEditingItem(null);
     setItemFormData({
       code: '',
@@ -142,6 +143,7 @@ export function Estoque() {
   };
 
   const handleOpenEditItem = (item: InventoryItem) => {
+    if (!isAdmin) return;
     setEditingItem(item);
     setItemFormData({
       code: item.code,
@@ -157,6 +159,7 @@ export function Estoque() {
   };
 
   const handleOpenAdjustItem = (item: InventoryItem, defaultType: 'entrada' | 'saida' | 'ajuste' = 'saida', customReason = '') => {
+    if (!isAdmin) return;
     setAdjustingItem(item);
     setAdjustFormData({
       type: defaultType,
@@ -168,6 +171,7 @@ export function Estoque() {
   };
 
   const handleOpenEntryModal = () => {
+    if (!isAdmin) return;
     setEntryFormData({
       date: new Date().toISOString().split('T')[0],
       supplier: '',
@@ -182,6 +186,10 @@ export function Estoque() {
 
   const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) {
+      setError('Apenas administradores podem salvar itens no estoque.');
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -265,6 +273,10 @@ export function Estoque() {
 
   const handleSaveAdjustment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) {
+      setError('Apenas administradores podem realizar movimentações de ajuste.');
+      return;
+    }
     if (!adjustingItem) return;
 
     setLoading(true);
@@ -322,6 +334,10 @@ export function Estoque() {
   // Process launching a new Entry (NF input)
   const handleSaveEntry = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) {
+      setError('Apenas administradores podem lançar entradas via NF.');
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -420,6 +436,7 @@ export function Estoque() {
 
   // Direct fast-zero balance command
   const handleFastZeroBalance = async (item: InventoryItem) => {
+    if (!isAdmin) return;
     if (item.quantity === 0) {
       alert('O saldo deste item já é zero.');
       return;
@@ -568,17 +585,19 @@ export function Estoque() {
             <RefreshCw size={16} className={clsx(loading && "animate-spin")} />
           </button>
 
-          <button 
-            onClick={handleOpenNewItem}
-            className={clsx(
-              "px-5 py-3 font-black text-xs tracking-widest flex items-center gap-2 rounded-xl transition-all shadow-lg",
-              activeTab === 'catalog'
-                ? "bg-[#caf300] text-[#121414] hover:brightness-110"
-                : "bg-[#282a2b] hover:bg-[#333535] border border-[#444932] text-[#caf300]"
-            )}
-          >
-            <Plus size={16} /> CADASTRAR NOVO SKU
-          </button>
+          {isAdmin && (
+            <button 
+              onClick={handleOpenNewItem}
+              className={clsx(
+                "px-5 py-3 font-black text-xs tracking-widest flex items-center gap-2 rounded-xl transition-all shadow-lg",
+                activeTab === 'catalog'
+                  ? "bg-[#caf300] text-[#121414] hover:brightness-110"
+                  : "bg-[#282a2b] hover:bg-[#333535] border border-[#444932] text-[#caf300]"
+              )}
+            >
+              <Plus size={16} /> CADASTRAR NOVO SKU
+            </button>
+          )}
         </div>
       </div>
 
@@ -760,7 +779,7 @@ export function Estoque() {
                     <th className="px-6 py-4 text-center">Estoque Mínimo</th>
                     <th className="px-6 py-4 text-center">Status</th>
                     <th className="px-6 py-4 text-right">Preço Un. / Total</th>
-                    <th className="px-6 py-4 text-right">Ações</th>
+                    {isAdmin && <th className="px-6 py-4 text-right">Ações</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#444932]">
@@ -828,40 +847,40 @@ export function Estoque() {
                             Total: R$ {totalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {item.quantity > 0 ? (
+                        {isAdmin && (
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {item.quantity > 0 ? (
+                                <button
+                                  onClick={() => handleFastZeroBalance(item)}
+                                  className="bg-amber-600/20 text-amber-300 border border-amber-600 hover:bg-amber-600 hover:text-[#121414] px-2.5 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase transition-all flex items-center gap-1 shrink-0"
+                                  title="Zerar imediatamente o saldo físico desta filial"
+                                >
+                                  <Scale size={11} />
+                                  ZERAR SALDO
+                                </button>
+                              ) : (
+                                <span className="text-[9px] font-extrabold text-emerald-400 bg-emerald-950/40 border border-emerald-900/40 px-2 py-1 rounded text-center shrink-0">
+                                  ✓ SALDO ZERADO
+                                </span>
+                              )}
+
                               <button
-                                onClick={() => handleFastZeroBalance(item)}
-                                className="bg-amber-600/20 text-amber-300 border border-amber-600 hover:bg-amber-600 hover:text-[#121414] px-2.5 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase transition-all flex items-center gap-1 shrink-0"
-                                title="Zerar imediatamente o saldo físico desta filial"
+                                onClick={() => handleOpenAdjustItem(item)}
+                                className="text-xs font-bold text-[#c5c9ac] hover:text-[#caf300] bg-[#282a2b] hover:bg-[#333535] p-2 rounded-lg transition-all border border-[#444932]"
+                                title="Registrar ajuste manual"
                               >
-                                <Scale size={11} />
-                                ZERAR SALDO
+                                <TrendingDown size={14} />
                               </button>
-                            ) : (
-                              <span className="text-[9px] font-extrabold text-emerald-400 bg-emerald-950/40 border border-emerald-900/40 px-2 py-1 rounded text-center shrink-0">
-                                ✓ SALDO ZERADO
-                              </span>
-                            )}
 
-                            <button
-                              onClick={() => handleOpenAdjustItem(item)}
-                              className="text-xs font-bold text-[#c5c9ac] hover:text-[#caf300] bg-[#282a2b] hover:bg-[#333535] p-2 rounded-lg transition-all border border-[#444932]"
-                              title="Registrar ajuste manual"
-                            >
-                              <TrendingDown size={14} />
-                            </button>
+                              <button
+                                onClick={() => handleOpenEditItem(item)}
+                                className="text-xs font-bold text-[#c5c9ac] hover:text-white bg-[#282a2b] hover:bg-[#333535] p-2 rounded-lg transition-all border border-[#444932]"
+                                title="Editar metadata da peça"
+                              >
+                                <Edit3 size={14} />
+                              </button>
 
-                            <button
-                              onClick={() => handleOpenEditItem(item)}
-                              className="text-xs font-bold text-[#c5c9ac] hover:text-white bg-[#282a2b] hover:bg-[#333535] p-2 rounded-lg transition-all border border-[#444932]"
-                              title="Editar metadata da peça"
-                            >
-                              <Edit3 size={14} />
-                            </button>
-
-                            {isAdmin && (
                               <button
                                 onClick={() => handleDeleteItem(item.id, item.name)}
                                 className="text-xs font-bold text-[#ffb4ab] hover:text-red-500 bg-[#282a2b] hover:bg-black/40 p-2 rounded-lg transition-all border border-[#444932]"
@@ -869,9 +888,9 @@ export function Estoque() {
                               >
                                 <Trash2 size={14} />
                               </button>
-                            )}
-                          </div>
-                        </td>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -912,12 +931,14 @@ export function Estoque() {
                 ))}
               </select>
 
-              <button
-                onClick={handleOpenNewItem}
-                className="bg-[#caf300] text-[#121414] text-xs font-black tracking-widest uppercase px-4 py-2 rounded-xl hover:brightness-110 flex items-center gap-1.5 transition-all"
-              >
-                <Plus size={14} /> CADASTRAR SKU
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={handleOpenNewItem}
+                  className="bg-[#caf300] text-[#121414] text-xs font-black tracking-widest uppercase px-4 py-2 rounded-xl hover:brightness-110 flex items-center gap-1.5 transition-all"
+                >
+                  <Plus size={14} /> CADASTRAR SKU
+                </button>
+              )}
             </div>
           </div>
 
@@ -940,7 +961,7 @@ export function Estoque() {
                     <th className="px-6 py-4">Categoria / Local Padrão</th>
                     <th className="px-6 py-4 text-center">Mínimo Segurança</th>
                     <th className="px-6 py-4 text-right">Preço de Referência</th>
-                    <th className="px-6 py-4 text-center">Ações</th>
+                    {isAdmin && <th className="px-6 py-4 text-center">Ações</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#444932]">
@@ -968,17 +989,17 @@ export function Estoque() {
                       <td className="px-6 py-4 text-right text-gray-200 font-bold">
                         R$ {item.unit_price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            onClick={() => handleOpenEditItem(item)}
-                            className="text-xs font-bold text-[#c5c9ac] hover:text-white bg-[#282a2b] hover:bg-[#333535] p-2 rounded-lg transition-all border border-[#444932]"
-                            title="Editar SKU"
-                          >
-                            <Edit3 size={14} />
-                          </button>
+                      {isAdmin && (
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => handleOpenEditItem(item)}
+                              className="text-xs font-bold text-[#c5c9ac] hover:text-white bg-[#282a2b] hover:bg-[#333535] p-2 rounded-lg transition-all border border-[#444932]"
+                              title="Editar SKU"
+                            >
+                              <Edit3 size={14} />
+                            </button>
 
-                          {isAdmin && (
                             <button
                               onClick={() => handleDeleteItem(item.id, item.name)}
                               className="text-xs font-bold text-[#ffb4ab] hover:text-red-500 bg-[#282a2b] hover:bg-black/40 p-2 rounded-lg transition-all border border-[#444932]"
@@ -986,9 +1007,9 @@ export function Estoque() {
                             >
                               <Trash2 size={14} />
                             </button>
-                          )}
-                        </div>
-                      </td>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

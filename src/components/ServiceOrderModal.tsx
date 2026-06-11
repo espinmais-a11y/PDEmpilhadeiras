@@ -329,10 +329,66 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
 
   async function handleDelete() {
     if (!editingOrder || !isAdmin) return;
-    if (!confirm('Tem certeza que deseja EXCLUIR permanentemente esta Ordem de Serviço?')) return;
+    if (!confirm('Tem certeza que deseja EXCLUIR permanentemente esta Ordem de Serviço e RETORNAR as peças ao estoque?')) return;
 
     setLoading(true);
     try {
+      // 1. Fetch latest used parts for this service order to refund them to stock
+      const { data: partsToReturn, error: partsFetchError } = await supabase
+        .from('used_parts')
+        .select('*')
+        .eq('service_order_id', editingOrder.id);
+      
+      if (partsFetchError) throw partsFetchError;
+
+      // 2. Fetch inventory items to find matches
+      const { data: invItems, error: queryErr } = await supabase
+        .from('inventory')
+        .select('*');
+
+      if (queryErr) throw queryErr;
+
+      if (partsToReturn && partsToReturn.length > 0 && invItems) {
+        for (const part of partsToReturn) {
+          let parsedCode = '';
+          const codeMatch = part.part_name.match(/^\[(.*?)\]/);
+          if (codeMatch && codeMatch[1]) {
+            parsedCode = codeMatch[1].trim();
+          }
+
+          const matchedItem = invItems.find(i => 
+            (parsedCode && i.code.toUpperCase() === parsedCode.toUpperCase()) || 
+            part.part_name.includes(i.name)
+          );
+
+          if (matchedItem) {
+            const returnedQty = matchedItem.quantity + part.quantity;
+            
+            // Revert inventory quantity
+            const { error: updateInvErr } = await supabase
+              .from('inventory')
+              .update({ quantity: returnedQty })
+              .eq('id', matchedItem.id);
+            if (updateInvErr) throw updateInvErr;
+
+            // Log history
+            const historyLogPayload = {
+              item_id: matchedItem.id,
+              item_code: matchedItem.code,
+              item_name: matchedItem.name,
+              type: 'entrada',
+              quantity: part.quantity,
+              reason: `Retorno ao estoque - Exclusão da OS #${editingOrder.id} - ${editingOrder.title}`,
+              location: matchedItem.location,
+              user_name: profile?.full_name || 'Administrador',
+              created_at: new Date().toISOString()
+            };
+            const { error: historyErr } = await supabase.from('inventory_history').insert([historyLogPayload]);
+            if (historyErr) console.warn('[InventoryHistory] Error inserting log on OS delete:', historyErr);
+          }
+        }
+      }
+
       await supabase.from('used_parts').delete().eq('service_order_id', editingOrder.id);
       await supabase.from('preventive_checklist_answers').delete().eq('service_order_id', editingOrder.id);
       await supabase.from('service_order_photos').delete().eq('service_order_id', editingOrder.id);
