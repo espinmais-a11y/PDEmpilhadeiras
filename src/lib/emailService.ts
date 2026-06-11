@@ -316,12 +316,38 @@ export async function sendFinishedOSReport(orderId: string): Promise<{ success: 
       PD MANUTENÇÃO DE EMPILHADEIRAS S.A.
     `;
 
-    // 7. Send real email using Resend API if API Key is provided
+    // 7. Send real email using Resend API or Gmail Google Apps Script
     let emailStatus: 'sent' | 'failed' = 'sent';
     const apiKey = import.meta.env.VITE_RESEND_API_KEY;
     const fromEmail = import.meta.env.VITE_RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+    const gmailScriptUrl = import.meta.env.VITE_GMAIL_SCRIPT_URL;
 
-    if (apiKey) {
+    if (gmailScriptUrl) {
+      try {
+        console.log(`[EmailService] Attempting to deliver email via Gmail Apps Script to ${recipient}...`);
+        
+        // Since Google Apps Script Web Apps redirect (with 302) and might fail CORS policy inside IFRAME/Browser context,
+        // we use mode: 'no-cors' to allow sending the POST request without CORS restrictions.
+        await fetch(gmailScriptUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            to: recipient,
+            subject: subject,
+            htmlBody: htmlBody,
+            fromName: 'PD Manutenção'
+          })
+        });
+
+        console.log('[EmailService] Gmail Apps Script email service dispatched successfully (opaque fire-and-forget).');
+      } catch (sendErr: any) {
+        console.error('[EmailService] Failed to send email via Gmail Apps Script:', sendErr);
+        emailStatus = 'failed';
+      }
+    } else if (apiKey) {
       try {
         console.log(`[EmailService] Attempting to deliver email via Resend to ${recipient}...`);
         const response = await fetch('https://api.resend.com/emails', {
@@ -348,7 +374,7 @@ export async function sendFinishedOSReport(orderId: string): Promise<{ success: 
         emailStatus = 'failed';
       }
     } else {
-      console.log('[EmailService] VITE_RESEND_API_KEY is not defined. Email dispatch simulated (marked as sent).');
+      console.log('[EmailService] Neither VITE_GMAIL_SCRIPT_URL nor VITE_RESEND_API_KEY are defined. Email dispatch simulated.');
     }
 
     // 8. Write email send record to Firestore (persistent logs)
