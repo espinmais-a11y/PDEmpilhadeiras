@@ -75,13 +75,23 @@ export function ServiceOrders() {
 
     addLog('Iniciando diagnóstico técnico de envio de e-mail...');
 
-    const gmailScriptUrl = import.meta.env.VITE_GMAIL_SCRIPT_URL;
+    const rawUrl = import.meta.env.VITE_GMAIL_SCRIPT_URL || '';
+    const gmailScriptUrl = rawUrl.trim();
     addLog(`VITE_GMAIL_SCRIPT_URL detectado: ${gmailScriptUrl ? 'Sim (Preenchido)' : 'Não (Vazio)'}`);
     
     if (gmailScriptUrl) {
-      addLog(`URL do script: "${gmailScriptUrl.substring(0, Math.min(35, gmailScriptUrl.length))}..."`);
+      addLog(`URL do script (tratada/sem espaços): "${gmailScriptUrl.substring(0, Math.min(45, gmailScriptUrl.length))}..."`);
+      
+      if (rawUrl !== gmailScriptUrl) {
+        addLog('⚠️ AVISO DE FORMATO: A URL configurada contém espaços extras ou quebra de linha nas pontas. Corrigimos isso automaticamente no envio, mas sugerimos salvar sem espaços no painel de ambiente.');
+      }
+      
       if (!gmailScriptUrl.startsWith('https://script.google.com/')) {
-        addLog('AVISO: A URL configurada não parece ser um link do Google Apps Script (deve começar com "https://script.google.com/"). Verifique se você copiou o link correto.');
+        addLog('⚠️ ALERTA CRÍTICO: A URL configurada não começa com "https://script.google.com/". Certifique-se de que copiou o Link do Web App gerado no Passo "Implantar > Nova implantação".');
+      }
+      
+      if (!gmailScriptUrl.endsWith('/exec')) {
+        addLog('❌ ERRO GRAVE DE FORMATO: A URL detectada não termina com "/exec". Endpoints do Google Apps Script precisam obrigatoriamente terminar com "/exec" para processar requisições. Se sua URL termina com "/edit" ou "/dev", o Google vai recusar ou ignorar o carregamento do payload!');
       }
     } else {
       addLog('ERRO CRÍTICO: VITE_GMAIL_SCRIPT_URL não foi preenchida! Preencha na Vercel e salve no painel de segredos do AI Studio.');

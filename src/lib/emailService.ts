@@ -319,7 +319,8 @@ export async function sendFinishedOSReport(orderId: string): Promise<{ success: 
 
     // 7. Send real email using Gmail Google Apps Script Web App
     let emailStatus: 'sent' | 'failed' = 'sent';
-    const gmailScriptUrl = import.meta.env.VITE_GMAIL_SCRIPT_URL;
+    const rawGmailScriptUrl = import.meta.env.VITE_GMAIL_SCRIPT_URL || '';
+    const gmailScriptUrl = rawGmailScriptUrl.trim();
 
     if (gmailScriptUrl) {
       try {
