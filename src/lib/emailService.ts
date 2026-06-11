@@ -54,7 +54,8 @@ export async function sendFinishedOSReport(orderId: string): Promise<{ success: 
       .from('service_order_photos')
       .eq('service_order_id', orderId);
 
-    const recipient = customer?.contact_email || 'raoniespin@gmail.com';
+    const rawRecipient = customer?.contact_email || 'raoniespin@gmail.com';
+    const recipient = rawRecipient.toLowerCase().trim();
     const customerName = customer?.name || 'Cliente';
     const subject = `[PD MANUTENÇÃO] Relatório de Serviço Concluído - OS #${os.id.substring(0, 8).toUpperCase()}`;
 
@@ -316,24 +317,19 @@ export async function sendFinishedOSReport(orderId: string): Promise<{ success: 
       PD MANUTENÇÃO DE EMPILHADEIRAS S.A.
     `;
 
-    // 7. Send real email using Resend API or Gmail Google Apps Script
+    // 7. Send real email using Gmail Google Apps Script Web App
     let emailStatus: 'sent' | 'failed' = 'sent';
-    const apiKey = import.meta.env.VITE_RESEND_API_KEY;
-    const fromEmail = import.meta.env.VITE_RESEND_FROM_EMAIL || 'onboarding@resend.dev';
     const gmailScriptUrl = import.meta.env.VITE_GMAIL_SCRIPT_URL;
 
     if (gmailScriptUrl) {
       try {
-        console.log(`[EmailService] Attempting to deliver email via Gmail Apps Script to ${recipient}...`);
-        
-        // Since Google Apps Script Web Apps redirect (with 302) and might fail CORS policy inside IFRAME/Browser context,
-        // we use mode: 'no-cors' to allow sending the POST request without CORS restrictions.
+        console.log(`[EmailService] Attempting to deliver email via Gmail Apps Script to: ${recipient}...`);
+
+        // Send payload. When using mode: 'no-cors' standard custom headers are omitted.
+        // We do not set application/json custom header to ensure browsers do not block, and let text/plain allow sending raw payload.
         await fetch(gmailScriptUrl, {
           method: 'POST',
           mode: 'no-cors',
-          headers: {
-            'Content-Type': 'application/json'
-          },
           body: JSON.stringify({
             to: recipient,
             subject: subject,
@@ -342,39 +338,13 @@ export async function sendFinishedOSReport(orderId: string): Promise<{ success: 
           })
         });
 
-        console.log('[EmailService] Gmail Apps Script email service dispatched successfully (opaque fire-and-forget).');
+        console.log(`[EmailService] Gmail Apps Script email service dispatched successfully to ${recipient} (opaque fire-and-forget).`);
       } catch (sendErr: any) {
         console.error('[EmailService] Failed to send email via Gmail Apps Script:', sendErr);
         emailStatus = 'failed';
       }
-    } else if (apiKey) {
-      try {
-        console.log(`[EmailService] Attempting to deliver email via Resend to ${recipient}...`);
-        const response = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            from: `PD Manutenção <${fromEmail}>`,
-            to: [recipient],
-            subject: subject,
-            html: htmlBody
-          })
-        });
-
-        if (!response.ok) {
-          const errBody = await response.json().catch(() => ({}));
-          throw new Error(errBody.message || `HTTP ${response.status}`);
-        }
-        console.log('[EmailService] Resend email dispatched successfully.');
-      } catch (sendErr: any) {
-        console.error('[EmailService] Failed to send email via Resend:', sendErr);
-        emailStatus = 'failed';
-      }
     } else {
-      console.log('[EmailService] Neither VITE_GMAIL_SCRIPT_URL nor VITE_RESEND_API_KEY are defined. Email dispatch simulated.');
+      console.log('[EmailService] VITE_GMAIL_SCRIPT_URL is not defined. Email dispatch simulated.');
     }
 
     // 8. Write email send record to Firestore (persistent logs)
@@ -405,7 +375,7 @@ export async function sendFinishedOSReport(orderId: string): Promise<{ success: 
     return {
       success: emailStatus === 'sent',
       data: createdRecord as EmailLog,
-      error: emailStatus === 'failed' ? 'Erro de comunicação com o servidor de e-mail (Resend).' : undefined
+      error: emailStatus === 'failed' ? 'Erro de comunicação com o servidor de e-mail (Gmail Script).' : undefined
     };
   } catch (err: any) {
     console.error('[EmailService] Error preparing report:', err);

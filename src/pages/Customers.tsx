@@ -416,9 +416,9 @@ export function Customers() {
                        <input 
                          required 
                          type="email"
-                         className="auth-input rounded-xl uppercase"
+                         className="auth-input rounded-xl lowercase"
                          value={formData.contact_email}
-                         onChange={e => setFormData({...formData, contact_email: e.target.value.toUpperCase()})}
+                         onChange={e => setFormData({...formData, contact_email: e.target.value.toLowerCase()})}
                        />
                     </Field>
                     <Field label="Telefone">

@@ -351,20 +351,38 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
       if (partsToReturn && partsToReturn.length > 0 && invItems) {
         for (const part of partsToReturn) {
           let parsedCode = '';
-          const codeMatch = part.part_name.match(/^\[(.*?)\]/);
+          const codeMatch = part.part_name ? part.part_name.match(/^\[(.*?)\]/) : null;
           if (codeMatch && codeMatch[1]) {
             parsedCode = codeMatch[1].trim();
           }
 
-          const matchedItem = invItems.find(i => 
-            (parsedCode && i.code.toUpperCase() === parsedCode.toUpperCase()) || 
-            part.part_name.includes(i.name)
-          );
+          const matchedItem = invItems.find(i => {
+            const itemCodeLower = (i.code || '').toLowerCase().trim();
+            const itemNameLower = (i.name || '').toLowerCase().trim();
+            const partNameLower = (part.part_name || '').toLowerCase();
+            
+            if (parsedCode && itemCodeLower === parsedCode.toLowerCase().trim()) {
+              return true;
+            }
+            if (itemNameLower && (partNameLower === itemNameLower || partNameLower.includes(itemNameLower))) {
+              return true;
+            }
+            return false;
+          });
 
           if (matchedItem) {
-            const returnedQty = matchedItem.quantity + part.quantity;
+            // Fetch absolute latest quantity from database of this inventory item to prevent stale cache overwrites
+            const { data: dbItemArray } = await supabase
+              .from('inventory')
+              .select('*')
+              .eq('id', matchedItem.id);
+
+            const dbItem = dbItemArray && dbItemArray.length > 0 ? dbItemArray[0] : null;
+            const currentQty = dbItem ? Number(dbItem.quantity || 0) : Number(matchedItem.quantity || 0);
+            const partQtyToReturn = Number(part.quantity || 0);
+            const returnedQty = currentQty + partQtyToReturn;
             
-            // Revert inventory quantity
+            // Revert inventory quantity with absolute defensive casting
             const { error: updateInvErr } = await supabase
               .from('inventory')
               .update({ quantity: returnedQty })
@@ -377,7 +395,7 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
               item_code: matchedItem.code,
               item_name: matchedItem.name,
               type: 'entrada',
-              quantity: part.quantity,
+              quantity: partQtyToReturn,
               reason: `Retorno ao estoque - Exclusão da OS #${editingOrder.id} - ${editingOrder.title}`,
               location: matchedItem.location,
               user_name: profile?.full_name || 'Administrador',
