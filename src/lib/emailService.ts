@@ -73,10 +73,17 @@ export async function sendFinishedOSReport(orderId: string): Promise<{ success: 
     // Build Checklist HTML
     let checklistHtml = '';
     if (os.is_preventive && checklistDetails.length > 0) {
+      const opinion = os.preventive_opinion || 'NÃO DEFINIDO';
+      const opinionColor = opinion === 'LIBERADO' ? '#15803d' : opinion === 'BLOQUEADO' ? '#b91c1c' : '#64748b';
+      const opinionBg = opinion === 'LIBERADO' ? '#dcfce7' : opinion === 'BLOQUEADO' ? '#fee2e2' : '#f1f5f9';
+
       checklistHtml = `
         <div style="margin-top: 25px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
           <div style="background-color: ${primaryColor}; color: #ffffff; padding: 12px 16px; font-weight: bold; font-size: 14px; text-transform: uppercase;">
             📋 Questionário de Manutenção Preventiva
+            <span style="float: right; font-size: 11px; background-color: ${opinionBg}; color: ${opinionColor}; padding: 2px 8px; border-radius: 4px; font-weight: bold; border: 1px solid ${opinionColor}40; margin-left: 10px;">
+              PARECER: ${opinion}
+            </span>
           </div>
           <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
             <thead>

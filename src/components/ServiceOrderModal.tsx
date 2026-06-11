@@ -54,6 +54,7 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
     status: 'Pending' as OSStatus,
     work_hours: 0,
     is_preventive: false,
+    preventive_opinion: null as 'LIBERADO' | 'BLOQUEADO' | null,
   });
 
   const [formData, setFormData] = useState(getInitialFormData());
@@ -117,6 +118,7 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
           status: editingOrder.status || 'Pending',
           work_hours: editingOrder.work_hours || 0,
           is_preventive: editingOrder.is_preventive || false,
+          preventive_opinion: (editingOrder as any).preventive_opinion || null,
         });
         fetchChecklistData(editingOrder.id);
         fetchPhotos(editingOrder.id);
@@ -246,12 +248,22 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
       }
     }
 
-    // Block finalization if preventive has pending items
+     // Block finalization if preventive has pending or unanswered items
     if (formData.status === 'Maintenance Done' && formData.is_preventive && editingOrder) {
       const hasPending = checklistItems.some(item => checklistAnswers[item.id] === 'pending');
       const hasUnanswered = checklistItems.some(item => !checklistAnswers[item.id]);
-      if (hasPending || hasUnanswered) {
-        setError('Não é possível finalizar: o questionário de manutenção preventiva possui itens pendentes ou não respondidos.');
+      if (hasUnanswered) {
+        setError('Não é possível finalizar: o questionário possui itens sem resposta.');
+        setActiveTab('preventive');
+        return;
+      }
+      if (hasPending && formData.preventive_opinion === 'LIBERADO') {
+        setError('Inconsistência: Não é possível marcar o Parecer Final como LIBERADO enquanto houver itens PENDENTES.');
+        setActiveTab('preventive');
+        return;
+      }
+      if (!formData.preventive_opinion) {
+        setError('Por favor, defina o Parecer Final da Inspeção na aba de Preventiva.');
         setActiveTab('preventive');
         return;
       }
@@ -274,6 +286,7 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
         status: formData.status,
         work_hours: formData.work_hours || 0,
         is_preventive: formData.is_preventive,
+        preventive_opinion: formData.is_preventive ? formData.preventive_opinion : null,
         vibe_signature: signatureDataUrl,
         updated_at: new Date().toISOString(),
       };
@@ -1260,156 +1273,239 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
               )}
 
               {/* ——— TAB: PREVENTIVA ——— */}
-              {activeTab === 'preventive' && (
-                <div className="p-4 md:p-6 space-y-5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-black text-white uppercase tracking-tight">Questionário de Inspeção</h4>
-                      <p className="text-[10px] text-[#c5c9ac] mt-0.5">Todas as questões são obrigatórias</p>
-                    </div>
-                    {editingOrder && !isReadOnly && (
-                      <button
-                        onClick={saveChecklist}
-                        disabled={savingChecklist}
-                        className="bg-[#7c3aed] text-white px-4 py-2 rounded-lg text-[10px] font-black tracking-widest uppercase flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
-                      >
-                        {savingChecklist ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-                        SALVAR
-                      </button>
-                    )}
-                  </div>
+              {activeTab === 'preventive' && (() => {
+                // Group checklist items by part
+                const groupedItems = checklistItems.reduce<Record<string, ChecklistItem[]>>((acc, item) => {
+                  const partName = item.part || 'GERAL';
+                  if (!acc[partName]) {
+                    acc[partName] = [];
+                  }
+                  acc[partName].push(item);
+                  return acc;
+                }, {});
 
-                  {/* Progress */}
-                  {editingOrder && (
-                    <div className="bg-[#0c0f0f] rounded-xl p-3 space-y-2">
-                      <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest">
-                        <span className="text-[#c5c9ac]">Progresso</span>
-                        <span className="text-[#caf300]">
-                          {Object.keys(checklistAnswers).length}/{checklistItems.length} respondidos
-                        </span>
+                return (
+                  <div className="p-4 md:p-6 space-y-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-black text-white uppercase tracking-tight">Questionário de Inspeção</h4>
+                        <p className="text-[10px] text-[#c5c9ac] mt-0.5">Todas as questões são obrigatórias</p>
                       </div>
-                      <div className="h-1.5 bg-[#333535] rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#caf300] rounded-full transition-all"
-                          style={{ width: `${checklistItems.length ? (Object.keys(checklistAnswers).length / checklistItems.length) * 100 : 0}%` }}
-                        />
-                      </div>
-                      {hasPendingChecklist && (
-                        <p className="text-[9px] text-[#ffbf00] font-bold uppercase tracking-wide flex items-center gap-1">
-                          <AlertTriangle size={10} /> Há itens marcados como pendentes — OS não pode ser finalizada.
-                        </p>
+                      {editingOrder && !isReadOnly && (
+                        <button
+                          onClick={saveChecklist}
+                          disabled={savingChecklist}
+                          className="bg-[#7c3aed] text-white px-4 py-2 rounded-lg text-[10px] font-black tracking-widest uppercase flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
+                        >
+                          {savingChecklist ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                          SALVAR
+                        </button>
                       )}
                     </div>
-                  )}
 
-                  {/* Checklist items */}
-                  <div className="space-y-2.5">
-                    {checklistItems.map((item, idx) => {
-                      const answer = checklistAnswers[item.id];
-                      return (
-                        <div
-                          key={item.id}
-                          className={clsx(
-                            "border rounded-xl p-3 md:p-4 transition-all",
-                            answer === 'ok' ? "bg-green-500/5 border-green-500/30" :
-                            answer === 'pending' ? "bg-[#ffbf00]/5 border-[#ffbf00]/30" :
-                            "bg-[#0c0f0f] border-[#444932]"
-                          )}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3 flex-1">
-                              <span className="text-[9px] font-black text-[#c5c9ac] mt-1 w-5 shrink-0">{idx + 1}.</span>
-                              <p className="text-xs font-bold text-white leading-relaxed">{item.label}</p>
-                            </div>
-                            {isAdmin && !isReadOnly && (
-                              <button
-                                onClick={() => deleteChecklistItem(item.id)}
-                                className="text-[#444932] hover:text-[#ffb4ab] transition-colors shrink-0 p-1"
-                                title="Remover item"
-                              >
-                                <Trash2 size={12} />
-                              </button>
+                    {/* Progress */}
+                    {editingOrder && (
+                      <div className="bg-[#0c0f0f] rounded-xl p-3 space-y-2">
+                        <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest">
+                          <span className="text-[#c5c9ac]">Progresso</span>
+                          <span className="text-[#caf300]">
+                            {Object.keys(checklistAnswers).length}/{checklistItems.length} respondidos
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-[#333535] rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-[#caf300] rounded-full transition-all"
+                            style={{ width: `${checklistItems.length ? (Object.keys(checklistAnswers).length / checklistItems.length) * 100 : 0}%` }}
+                          />
+                        </div>
+                        {hasPendingChecklist && (
+                          <p className="text-[9px] text-[#ffbf00] font-bold uppercase tracking-wide flex items-center gap-1">
+                            <AlertTriangle size={10} /> Há itens marcados como pendentes — OS deve ser finalizada como BLOQUEADA.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Grouped Checklist items */}
+                    <div className="space-y-6">
+                      {Object.entries(groupedItems).map(([partName, items]) => (
+                        <div key={partName} className="space-y-3">
+                          <div className="border-l-4 border-[#caf300] pl-3 py-1 bg-[#1e2020]/50 rounded-r-lg">
+                            <h5 className="text-[11px] font-black tracking-widest uppercase text-[#caf300]">{partName}</h5>
+                            {partName.includes('PARTE 1') && (
+                              <p className="text-[10px] text-[#c5c9ac] italic mt-0.5 font-sans">
+                                Instrução: Utilize o dispositivo para anexar as fotos reais do equipamento no momento da inspeção.
+                              </p>
                             )}
                           </div>
-                          {!isReadOnly && (
-                            <div className="flex gap-2 mt-3 ml-8">
-                              <label className={clsx(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer text-[10px] font-black uppercase tracking-widest transition-all border",
-                                answer === 'ok'
-                                  ? "bg-green-500/20 border-green-500/50 text-green-400"
-                                  : "bg-[#1e2020] border-[#444932] text-[#c5c9ac] hover:border-green-500/30"
-                              )}>
-                                <input
-                                  type="radio"
-                                  name={`checklist-${item.id}`}
-                                  value="ok"
-                                  checked={answer === 'ok'}
-                                  onChange={() => setChecklistAnswers(prev => ({ ...prev, [item.id]: 'ok' }))}
-                                  className="sr-only"
-                                />
-                                <CheckCircle2 size={12} />
-                                OK
-                              </label>
-                              <label className={clsx(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer text-[10px] font-black uppercase tracking-widest transition-all border",
-                                answer === 'pending'
-                                  ? "bg-[#ffbf00]/20 border-[#ffbf00]/50 text-[#ffbf00]"
-                                  : "bg-[#1e2020] border-[#444932] text-[#c5c9ac] hover:border-[#ffbf00]/30"
-                              )}>
-                                <input
-                                  type="radio"
-                                  name={`checklist-${item.id}`}
-                                  value="pending"
-                                  checked={answer === 'pending'}
-                                  onChange={() => setChecklistAnswers(prev => ({ ...prev, [item.id]: 'pending' }))}
-                                  className="sr-only"
-                                />
-                                <AlertTriangle size={12} />
-                                PENDENTE
-                              </label>
-                            </div>
-                          )}
-                          {isReadOnly && answer && (
-                            <div className="ml-8 mt-2">
-                              <span className={clsx(
-                                "px-2 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg",
-                                answer === 'ok' ? "bg-green-500/20 text-green-400" : "bg-[#ffbf00]/20 text-[#ffbf00]"
-                              )}>
-                                {answer === 'ok' ? '✓ OK' : '⚠ PENDENTE'}
-                              </span>
-                            </div>
-                          )}
+                          
+                          <div className="space-y-2.5">
+                            {(items as ChecklistItem[]).map((item) => {
+                              const answer = checklistAnswers[item.id];
+                              return (
+                                <div
+                                  key={item.id}
+                                  className={clsx(
+                                    "border rounded-xl p-3 md:p-4 transition-all",
+                                    answer === 'ok' ? "bg-green-500/5 border-green-500/30" :
+                                    answer === 'pending' ? "bg-[#ffbf00]/5 border-[#ffbf00]/30" :
+                                    "bg-[#0c0f0f] border-[#444932]"
+                                  )}
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-start gap-3 flex-1">
+                                      <p className="text-xs font-bold text-white leading-relaxed">{item.label}</p>
+                                    </div>
+                                    {isAdmin && !isReadOnly && (
+                                      <button
+                                        onClick={() => deleteChecklistItem(item.id)}
+                                        className="text-[#444932] hover:text-[#ffb4ab] transition-colors shrink-0 p-1"
+                                        title="Remover item"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    )}
+                                  </div>
+                                  {!isReadOnly && (
+                                    <div className="flex gap-2 mt-3 justify-end md:justify-start">
+                                      <button
+                                        type="button"
+                                        onClick={() => setChecklistAnswers(prev => ({ ...prev, [item.id]: 'ok' }))}
+                                        className={clsx(
+                                          "flex-1 md:flex-initial flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border cursor-pointer",
+                                          answer === 'ok'
+                                            ? "bg-green-500 text-black border-green-500 font-extrabold shadow-lg shadow-green-500/20"
+                                            : "bg-[#1e2020] border-[#444932] text-[#c5c9ac] hover:border-green-500/35"
+                                        )}
+                                      >
+                                        <CheckCircle2 size={12} />
+                                        OK
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setChecklistAnswers(prev => ({ ...prev, [item.id]: 'pending' }))}
+                                        className={clsx(
+                                          "flex-1 md:flex-initial flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border cursor-pointer",
+                                          answer === 'pending'
+                                            ? "bg-[#d97706] text-black border-[#d97706] font-extrabold shadow-lg shadow-amber-500/20"
+                                            : "bg-[#1e2020] border-[#444932] text-[#c5c9ac] hover:border-amber-500/35"
+                                        )}
+                                      >
+                                        <AlertTriangle size={12} />
+                                        PENDENTE
+                                      </button>
+                                    </div>
+                                  )}
+                                  {isReadOnly && answer && (
+                                    <div className="mt-2">
+                                      <span className={clsx(
+                                        "px-2 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg",
+                                        answer === 'ok' ? "bg-green-500/20 text-green-400" : "bg-amber-500/20 text-amber-500"
+                                      )}>
+                                        {answer === 'ok' ? '✓ OK' : '✗ PENDENTE'}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Add item (Admin only) */}
-                  {isAdmin && !isReadOnly && (
-                    <div className="border-t border-[#444932] pt-4 space-y-3">
-                      <p className="text-[9px] font-bold text-[#c5c9ac] uppercase tracking-widest">Adicionar item ao questionário</p>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={newItemLabel}
-                          onChange={(e) => setNewItemLabel(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addChecklistItem())}
-                          placeholder="Descrição do item de inspeção..."
-                          className="flex-1 bg-[#0c0f0f] border border-[#444932] text-sm text-white px-4 py-2.5 rounded-xl focus:border-[#7c3aed] outline-none transition-all placeholder:text-[#444932]"
-                        />
-                        <button
-                          onClick={addChecklistItem}
-                          disabled={addingItem || !newItemLabel.trim()}
-                          className="bg-[#7c3aed] text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5"
-                        >
-                          {addingItem ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                          ADD
-                        </button>
-                      </div>
+                      ))}
                     </div>
-                  )}
-                </div>
-              )}
+
+                    {/* PARECER FINAL DA INSPEÇÃO */}
+                    {editingOrder && (
+                      <div className="bg-[#1c1d1e] border border-[#444932] rounded-2xl p-5 mt-6 space-y-4">
+                        <div className="flex items-center gap-2 border-b border-[#444932] pb-3">
+                          <ShieldCheck className="text-[#caf300]" size={18} />
+                          <div>
+                            <h4 className="text-xs font-black text-white uppercase tracking-wider">PARECER FINAL DA INSPEÇÃO</h4>
+                            <p className="text-[9px] text-[#c5c9ac] uppercase tracking-wider mt-0.5">Definição obrigatória para laudo preventivo</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            disabled={isReadOnly}
+                            onClick={() => setFormData(prev => ({ ...prev, preventive_opinion: 'LIBERADO' }))}
+                            className={clsx(
+                              "flex items-start gap-4 p-4 rounded-xl text-left border transition-all cursor-pointer w-full focus:outline-none",
+                              formData.preventive_opinion === 'LIBERADO'
+                                ? "bg-green-500/10 border-green-500 text-green-400 font-bold"
+                                : "bg-[#0c0f0f] border-[#444932] text-[#c5c9ac] hover:border-green-500/30"
+                            )}
+                          >
+                            <div className={clsx(
+                              "w-4 h-4 rounded-full border flex items-center justify-center mt-0.5 shrink-0 transition-all",
+                              formData.preventive_opinion === 'LIBERADO' ? "border-green-400 bg-green-400" : "border-[#444932]"
+                            )}>
+                              {formData.preventive_opinion === 'LIBERADO' && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs font-black tracking-wider text-white">LIBERADO</p>
+                              <p className="text-[10px] text-[#c5c9ac] mt-1 leading-relaxed">
+                                O equipamento está em perfeitas condições de uso.
+                              </p>
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isReadOnly}
+                            onClick={() => setFormData(prev => ({ ...prev, preventive_opinion: 'BLOQUEADO' }))}
+                            className={clsx(
+                              "flex items-start gap-4 p-4 rounded-xl text-left border transition-all cursor-pointer w-full focus:outline-none",
+                              formData.preventive_opinion === 'BLOQUEADO'
+                                ? "bg-red-500/10 border-red-500 text-red-500 font-bold"
+                                : "bg-[#0c0f0f] border-[#444932] text-[#c5c9ac] hover:border-red-500/30"
+                            )}
+                          >
+                            <div className={clsx(
+                              "w-4 h-4 rounded-full border flex items-center justify-center mt-0.5 shrink-0 transition-all",
+                              formData.preventive_opinion === 'BLOQUEADO' ? "border-red-500 bg-red-500" : "border-[#444932]"
+                            )}>
+                              {formData.preventive_opinion === 'BLOQUEADO' && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs font-black tracking-wider text-white">BLOQUEADO</p>
+                              <p className="text-[10px] text-[#c5c9ac] mt-1 leading-relaxed">
+                                Foram encontradas não conformidades graves. O equipamento deve ser encaminhado para manutenção e não pode ser operado.
+                              </p>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Add item (Admin only) */}
+                    {isAdmin && !isReadOnly && (
+                      <div className="border-t border-[#444932] pt-4 space-y-3">
+                        <p className="text-[9px] font-bold text-[#c5c9ac] uppercase tracking-widest">Adicionar item ao questionário (Geral)</p>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newItemLabel}
+                            onChange={(e) => setNewItemLabel(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addChecklistItem())}
+                            placeholder="Descrição do item de inspeção..."
+                            className="flex-1 bg-[#0c0f0f] border border-[#444932] text-sm text-white px-4 py-2.5 rounded-xl focus:border-[#7c3aed] outline-none transition-all placeholder:text-[#444932]"
+                          />
+                          <button
+                            onClick={addChecklistItem}
+                            disabled={addingItem || !newItemLabel.trim()}
+                            className="bg-[#7c3aed] text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5"
+                          >
+                            {addingItem ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                            ADD
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* ——— TAB: FOTOS ——— */}
               {activeTab === 'photos' && (

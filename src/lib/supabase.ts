@@ -120,16 +120,26 @@ const seedInitialDataIfNeeded = () => {
       { id: 'ct3', name: 'Carregador Celular', created_at: new Date().toISOString() }
     ],
     preventive_checklist_items: [
-      { id: 'chk1', label: 'Verificação do nível de óleo do motor', display_order: 1, is_active: true, created_at: new Date().toISOString() },
-      { id: 'chk2', label: 'Verificação do nível de óleo hidráulico', display_order: 2, is_active: true, created_at: new Date().toISOString() },
-      { id: 'chk3', label: 'Verificação do nível da água do radiador', display_order: 3, is_active: true, created_at: new Date().toISOString() },
-      { id: 'chk4', label: 'Lubrificação de mastro e correntes', display_order: 4, is_active: true, created_at: new Date().toISOString() },
-      { id: 'chk5', label: 'Verificação das palhetas de borracha dos garfos', display_order: 5, is_active: true, created_at: new Date().toISOString() },
-      { id: 'chk6', label: 'Verificação e limpeza do filtro de ar', display_order: 6, is_active: true, created_at: new Date().toISOString() },
-      { id: 'chk7', label: 'Verificação do sistema de freios', display_order: 7, is_active: true, created_at: new Date().toISOString() },
-      { id: 'chk8', label: 'Verificação do sistema elétrico (fusíveis e cabos)', display_order: 8, is_active: true, created_at: new Date().toISOString() },
-      { id: 'chk9', label: 'Teste de funcionamento do buzzer e sinalizações', display_order: 9, is_active: true, created_at: new Date().toISOString() },
-      { id: 'chk10', label: 'Verificação do estado e calibragem dos pneus', display_order: 10, is_active: true, created_at: new Date().toISOString() }
+      { id: 'chk_p1_1', label: 'Foto da Frente do equipamento: A imagem está nítida e mostra a torre e os garfos por completo?', display_order: 1, part: 'PARTE 1: Registro Visual Obrigatório (Fotos)', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p1_2', label: 'Foto da Direita do equipamento: A imagem está nítida e mostra a lateral direita de forma clara?', display_order: 2, part: 'PARTE 1: Registro Visual Obrigatório (Fotos)', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p1_3', label: 'Foto da Esquerda do equipamento: A imagem está nítida e mostra a lateral esquerda de forma clara?', display_order: 3, part: 'PARTE 1: Registro Visual Obrigatório (Fotos)', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p1_4', label: 'Foto Traseira do equipamento: A imagem está nítida e mostra o contra-peso e a sinalização traseira?', display_order: 4, part: 'PARTE 1: Registro Visual Obrigatório (Fotos)', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p1_5', label: 'Garfos e Torre: Os garfos apresentam trincas, deformações ou desgaste excessivo? A corrente da torre está lubrificada e tensionada corretamente?', display_order: 5, part: 'PARTE 1: Registro Visual Obrigatório (Fotos)', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p1_6', label: 'Pneus e Rodas: Há desgaste excessivo, rasgos nos pneus ou parafusos soltos nas rodas? (Se pneumático: a pressão está correta?)', display_order: 6, part: 'PARTE 1: Registro Visual Obrigatório (Fotos)', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p1_7', label: 'Estrutura de Proteção (Gaiola/Protetor do Operador): O teto protetor apresenta amassados, trincas na solda ou alguma avaria que comprometa a segurança?', display_order: 7, part: 'PARTE 1: Registro Visual Obrigatório (Fotos)', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p1_8', label: 'Espelhos Retrovisores: Estão limpos, regulados e sem trincas?', display_order: 8, part: 'PARTE 1: Registro Visual Obrigatório (Fotos)', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p1_9', label: 'Cinto de Segurança: O cinto está prendendo corretamente e o tecido está sem desfiados ou cortes?', display_order: 9, part: 'PARTE 1: Registro Visual Obrigatório (Fotos)', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p3_1', label: 'Óleo do Motor / Fluído Hidráulico: O nível do óleo do motor e do sistema hidráulico estão entre o mínimo e o máximo indicados na vareta?', display_order: 10, part: 'PARTE 3: Níveis de Fluídos e Sistema de Propulsão', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p3_2', label: 'Vazamentos: Há vestígios de vazamento de óleo, fluído de freio ou água sob a empilhadeira?', display_order: 11, part: 'PARTE 3: Níveis de Fluídos e Sistema de Propulsão', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p3_3', label: 'Sistema de Combustível / Bateria: * Se Gás/Diesel: O cilindro de GLP está bem fixado e sem cheiro de vazamento? O nível de combustível está adequado? Se Elétrica: Os cabos da bateria estão firmes e sem azinhavre? O nível de água da bateria está correto?', display_order: 12, part: 'PARTE 3: Níveis de Fluídos e Sistema de Propulsão', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p3_4', label: 'Fluído de Arrefecimento (Radiador): O nível do líquido no vaso de expansão do radiador está correto? (Apenas verificar com motor frio).', display_order: 13, part: 'PARTE 3: Níveis de Fluídos e Sistema de Propulsão', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p4_1', label: 'Faróis e Lanternas: Os faróis dianteiros, lanternas traseiras e luzes de freio estão funcionando?', display_order: 14, part: 'PARTE 4: Sistemas Elétricos e de Sinalização', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p4_2', label: 'Giroflex / Luz de Advertência (Blue Spotlight): O giroflex e/ou a luz azul de segurança traseira estão operando normalmente?', display_order: 15, part: 'PARTE 4: Sistemas Elétricos e de Sinalização', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p4_3', label: 'Alarme de Ré e Buzina: O alarme sonora de marcha à ré ativa automaticamente? A buzina funciona perfeitamente?', display_order: 16, part: 'PARTE 4: Sistemas Elétricos e de Sinalização', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p4_4', label: 'Painel de Instrumentos: Os indicadores luminosos, marcador de combustível e horímetro estão funcionando sem luzes de erro acesas?', display_order: 17, part: 'PARTE 4: Sistemas Elétricos e de Sinalização', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p5_1', label: 'Freio de Serviço e Estacionamento: O freio de pé responde rapidamente? O freio de mão (estacionamento) segura o equipamento em uma rampa?', display_order: 18, part: 'PARTE 5: Testes Operacionais (Dinâmica/Em Movimento)', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p5_2', label: 'Direção: O volante gira suavemente para ambos os lados, sem folgas excessivas ou estalos?', display_order: 19, part: 'PARTE 5: Testes Operacionais (Dinâmica/Em Movimento)', is_active: true, created_at: new Date().toISOString() },
+      { id: 'chk_p5_3', label: 'Comandos Hidráulicos (Alavancas): As funções de Subida, Descida, Inclinação da torre e Deslocamento lateral (se houver) respondem de forma suave e rápida?', display_order: 20, part: 'PARTE 5: Testes Operacionais (Dinâmica/Em Movimento)', is_active: true, created_at: new Date().toISOString() }
     ],
     customers: [
       {
@@ -318,6 +328,22 @@ const seedInitialDataIfNeeded = () => {
       { id: 's2', name: 'IMPORTS INDUSTRIAL LTDA', tax_id: '22.333.444/0001-55', phone: '(11) 3333-4444', contact_email: 'contato@importsindustrial.com.br', created_at: new Date().toISOString() }
     ]
   };
+
+  const checkKey = 'fs_preventive_checklist_items';
+  const storedChecklist = localStorage.getItem(checkKey);
+  if (storedChecklist) {
+    try {
+      const items = JSON.parse(storedChecklist);
+      if (items.some((i: any) => i.id === 'chk1' || !i.id.startsWith('chk_p'))) {
+        localStorage.removeItem(checkKey);
+        items.forEach(async (it: any) => {
+          try {
+            await deleteDoc(doc(db, 'preventive_checklist_items', it.id));
+          } catch(e) {}
+        });
+      }
+    } catch (e) {}
+  }
 
   Object.entries(seeds).forEach(([col, items]) => {
     const key = `fs_${col}`;

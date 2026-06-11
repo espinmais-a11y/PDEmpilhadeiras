@@ -273,7 +273,7 @@ export function Rentals() {
           <div>
             <p className="text-[9px] text-[#8f9378] font-black tracking-widest uppercase">Faturamento Mensal</p>
             <p className="text-xl font-bold font-['JetBrains_Mono'] text-white">
-              S$ {monthlyRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              R$ {monthlyRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
           </div>
         </div>

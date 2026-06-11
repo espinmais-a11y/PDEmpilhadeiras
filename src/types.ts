@@ -105,6 +105,7 @@ export interface ServiceOrder {
   total_value: number;
   is_paid: boolean;
   is_preventive?: boolean;
+  preventive_opinion?: 'LIBERADO' | 'BLOQUEADO' | null;
   created_by?: string | null;
   created_at: string;
   updated_at: string;
@@ -123,6 +124,7 @@ export interface ChecklistItem {
   id: string;
   label: string;
   display_order: number;
+  part?: string;
   is_active: boolean;
   created_by: string | null;
   created_at: string;
