@@ -29,7 +29,8 @@ export function Rentals() {
     monthly_value: 0,
     status: 'Active' as RentalStatus,
     contract_number: '',
-    notes: ''
+    notes: '',
+    rental_type: 'Mensal' as 'Spot' | 'Mensal'
   });
 
   useEffect(() => {
@@ -67,7 +68,7 @@ export function Rentals() {
   // Filter only own fleet forklifts for rental select box
   const ownMachines = machines.filter(m => {
     const owner = customers.find(c => c.id === m.customer_id);
-    return m.customer_id === 'c-pd' || owner?.name?.toUpperCase().includes('PD EMPILHADEIRAS');
+    return m.customer_id === 'c-pd' || owner?.name?.toUpperCase().includes('PD EMPILHADEIRAS') || m.is_own_fleet;
   });
 
   const handleEdit = (rental: ForkliftRental) => {
@@ -80,7 +81,8 @@ export function Rentals() {
       monthly_value: rental.monthly_value,
       status: rental.status,
       contract_number: rental.contract_number || '',
-      notes: rental.notes || ''
+      notes: rental.notes || '',
+      rental_type: rental.rental_type || 'Mensal'
     });
     setError(null);
     setShowModal(true);
@@ -96,7 +98,8 @@ export function Rentals() {
       monthly_value: 1500,
       status: 'Active',
       contract_number: `CON-${Math.floor(1000 + Math.random() * 9000)}`,
-      notes: ''
+      notes: '',
+      rental_type: 'Mensal'
     });
     setError(null);
     setShowModal(true);
@@ -377,8 +380,17 @@ export function Rentals() {
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-[10px] font-bold font-['JetBrains_Mono'] text-[#caf300] uppercase tracking-widest">
+                    <p className="text-[10px] font-bold font-['JetBrains_Mono'] text-[#caf300] uppercase tracking-widest flex items-center gap-2">
                       Contrato: {rental.contract_number || 'S/Nº'}
+                      {rental.rental_type === 'Spot' ? (
+                        <span className="px-1.5 py-0.5 text-[8px] font-black tracking-widest bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded uppercase">
+                          SPOT
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 text-[8px] font-black tracking-widest bg-[#caf300]/10 text-[#caf300] border border-[#caf300]/20 rounded uppercase">
+                          MENSAL
+                        </span>
+                      )}
                     </p>
                     <h3 className="text-lg font-black italic text-white uppercase tracking-tighter mt-1">
                       {customer?.name || 'Cliente Desconhecido'}
@@ -417,9 +429,11 @@ export function Rentals() {
                     </p>
                   </div>
                   <div className="col-span-2 md:col-span-1">
-                    <h5 className="text-[9px] text-[#8f9378] font-black uppercase">Valor de Aluguel</h5>
+                    <h5 className="text-[9px] text-[#8f9378] font-black uppercase">
+                      {rental.rental_type === 'Spot' ? 'Valor Spot' : 'Aluguel Mensal'}
+                    </h5>
                     <p className="text-sm font-black font-['JetBrains_Mono'] text-[#caf300] mt-0.5">
-                      R$ {rental.monthly_value?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} <span className="text-[8px] font-bold text-[#c5c9ac]">/mês</span>
+                      R$ {rental.monthly_value?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} <span className="text-[8px] font-bold text-[#c5c9ac]">{rental.rental_type === 'Spot' ? 'único' : '/mês'}</span>
                     </p>
                   </div>
                 </div>
@@ -531,6 +545,39 @@ export function Rentals() {
                   />
                 </Field>
 
+                {/* Spot ou Mensal Selection Toggle */}
+                <div className="space-y-1.5 font-sans">
+                  <label className="text-[10px] font-bold text-[#8f9378] tracking-widest uppercase flex items-center gap-1">
+                    Tipo de Contrato <span className="text-red-400">*</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, rental_type: 'Mensal' }))}
+                      className={clsx(
+                        "py-3 px-4 font-black text-xs tracking-widest rounded-xl transition-all border flex items-center justify-center gap-2",
+                        formData.rental_type === 'Mensal'
+                          ? "bg-[#caf300] text-[#121414] border-[#caf300]"
+                          : "bg-[#0c0f0f] text-[#c5c9ac] border-[#444932] hover:border-[#caf300]/30"
+                      )}
+                    >
+                      MENSAL
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, rental_type: 'Spot' }))}
+                      className={clsx(
+                        "py-3 px-4 font-black text-xs tracking-widest rounded-xl transition-all border flex items-center justify-center gap-2",
+                        formData.rental_type === 'Spot'
+                          ? "bg-[#caf300] text-[#121414] border-[#caf300]"
+                          : "bg-[#0c0f0f] text-[#c5c9ac] border-[#444932] hover:border-[#caf300]/30"
+                      )}
+                    >
+                      SPOT
+                    </button>
+                  </div>
+                </div>
+
                 {/* Customer */}
                 <Field label="Cliente Locatário" required>
                   <select
@@ -596,7 +643,7 @@ export function Rentals() {
 
                 {/* Rental Cost & Status */}
                 <div className="grid grid-cols-2 gap-4">
-                  <Field label="Aluguel Mensal (R$)" required>
+                  <Field label={formData.rental_type === 'Spot' ? "Valor Spot do Contrato (R$)" : "Aluguel Mensal (R$)"} required>
                     <input
                       type="number"
                       required

@@ -82,7 +82,7 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
   const [usedParts, setUsedParts] = useState<UsedPart[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [selectedPartId, setSelectedPartId] = useState<string>('');
-  const [partQty, setPartQty] = useState<number>(1);
+  const [partQty, setPartQty] = useState<number | ''>('');
   const [loadingParts, setLoadingParts] = useState<boolean>(false);
 
   // Determine which tabs to show
@@ -298,10 +298,35 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
         }
       } else {
         payload.created_by = profile?.id || null;
-        const { data: insertList, error: insertError } = await supabase.from('service_orders').insert([payload]);
+        const { data: insertList, error: insertError } = await supabase.from('service_orders').insert([payload]).select();
         if (insertError) throw insertError;
         if (insertList && insertList[0]) {
           orderId = insertList[0].id;
+        }
+      }
+
+      // If we newly created a preventive OS and have active checklist answers, auto-save them
+      if (!isEditing && orderId && formData.is_preventive) {
+        const answersKeys = Object.keys(checklistAnswers);
+        if (answersKeys.length > 0) {
+          const upserts = checklistItems
+            .filter(item => checklistAnswers[item.id])
+            .map(item => ({
+              service_order_id: orderId,
+              item_id: item.id,
+              answer: checklistAnswers[item.id],
+              answered_by: profile?.id,
+              answered_at: new Date().toISOString(),
+            }));
+          
+          if (upserts.length > 0) {
+            const { error: upsertErr } = await supabase
+              .from('preventive_checklist_answers')
+              .upsert(upserts, { onConflict: 'service_order_id,item_id' });
+            if (upsertErr) {
+              console.error('[ChecklistAnswers] Error auto-saving checklist items on OS creation:', upsertErr);
+            }
+          }
         }
       }
 
@@ -479,7 +504,9 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
       setError('Selecione uma peça cadastrada do estoque.');
       return;
     }
-    if (partQty <= 0) {
+    
+    const numQty = Number(partQty);
+    if (!partQty || numQty <= 0) {
       setError('Quantidade precisa ser maior do que zero.');
       return;
     }
@@ -490,7 +517,7 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
       return;
     }
 
-    if (selectedItem.quantity < partQty) {
+    if (selectedItem.quantity < numQty) {
       setError(`Estoque insuficiente! Saldo atual desta peça é de apenas ${selectedItem.quantity} U.`);
       return;
     }
@@ -506,14 +533,14 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
         .single();
       
       if (fetchErr) throw fetchErr;
-      if (!realItemData || realItemData.quantity < partQty) {
+      if (!realItemData || realItemData.quantity < numQty) {
         throw new Error(`Estoque desatualizado ou insuficiente! Saldo real atual: ${realItemData?.quantity || 0} U.`);
       }
 
       const usedPartPayload = {
         service_order_id: editingOrder.id,
         part_name: `[${realItemData.code}] ${realItemData.name}`,
-        quantity: partQty,
+        quantity: numQty,
         unit_price: realItemData.unit_price,
         created_at: new Date().toISOString()
       };
@@ -523,7 +550,7 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
         .insert([usedPartPayload]);
       if (insertErr) throw insertErr;
 
-      const newInventoryQty = realItemData.quantity - partQty;
+      const newInventoryQty = realItemData.quantity - numQty;
       const { error: updateInvErr } = await supabase
         .from('inventory')
         .update({ quantity: newInventoryQty })
@@ -535,7 +562,7 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
         item_code: realItemData.code,
         item_name: realItemData.name,
         type: 'saida',
-        quantity: partQty,
+        quantity: numQty,
         reason: `Dedução OS #${editingOrder.id} - ${editingOrder.title}`,
         location: realItemData.location,
         user_name: profile?.full_name || 'Técnico Especialista',
@@ -547,7 +574,7 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
 
       setSuccessMsg(`Peça ${realItemData.code} adicionada e deduzida do estoque!`);
       setSelectedPartId('');
-      setPartQty(1);
+      setPartQty('');
       
       await fetchUsedParts(editingOrder.id);
       await fetchInventoryItems();
@@ -1304,7 +1331,7 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
                               </button>
                             )}
                           </div>
-                          {(editingOrder || !isEditing) && !isReadOnly && (
+                          {!isReadOnly && (
                             <div className="flex gap-2 mt-3 ml-8">
                               <label className={clsx(
                                 "flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer text-[10px] font-black uppercase tracking-widest transition-all border",
@@ -1499,9 +1526,18 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
                             <input
                               type="number"
                               min="1"
+                              placeholder="Fração ou Inteiro"
                               value={partQty}
-                              onChange={(e) => setPartQty(Math.max(1, parseInt(e.target.value) || 1))}
-                              className="w-full bg-[#0c0f0f] border border-[#444932] rounded-xl px-3 py-1.5 text-xs text-white focus:border-[#caf300] outline-none font-bold"
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === '') {
+                                  setPartQty('');
+                                } else {
+                                  const parsed = parseInt(val, 10);
+                                  setPartQty(isNaN(parsed) || parsed < 1 ? '' : parsed);
+                                }
+                              }}
+                              className="w-full bg-[#0c0f0f] border border-[#444932] rounded-xl px-3 py-1.5 text-xs text-white focus:border-[#caf300] outline-none font-bold placeholder:text-gray-600"
                             />
                             <button
                               type="button"

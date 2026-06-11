@@ -195,6 +195,7 @@ export interface ForkliftRental {
   status: RentalStatus;
   contract_number: string | null;
   notes: string | null;
+  rental_type?: 'Spot' | 'Mensal';
   created_at: string;
 }
 

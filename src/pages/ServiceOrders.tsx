@@ -106,7 +106,7 @@ export function ServiceOrders() {
       htmlBody: `
         <div style="font-family: Arial, sans-serif; padding: 25px; background-color: #f4f6f7; border-radius: 12px; border: 1px solid #e1e8ed; max-width: 500px; margin: 0 auto; color: #333;">
           <div style="background-color: #121414; padding: 15px; text-align: center; border-radius: 8px 8px 0 0; color: #fff;">
-            <h2 style="color: #caf300; margin: 0; font-size: 18px; text-transform: uppercase;">PD Manutenção</h2>
+            <h2 style="color: #caf300; margin: 0; font-size: 18px; text-transform: uppercase;">PD Empilhadeiras</h2>
           </div>
           <div style="padding: 20px; background-color: #ffffff; border-radius: 0 0 8px 8px; border: 1px solid #e2e8f0; border-top: 0;">
             <p style="font-size: 14px; line-height: 1.6; color: #334155;">Olá!</p>
@@ -622,20 +622,6 @@ export function ServiceOrders() {
                   >
                     <Pencil size={14} />
                   </button>
-                  {isAdmin && (
-                    <button 
-                      onClick={() => handleDeleteOS(os.id)}
-                      className={clsx(
-                        "transition-all p-1.5 rounded-lg cursor-pointer flex items-center justify-center border",
-                        deletingOsId === os.id
-                          ? "bg-[#93000a] text-white border-[#f1554c] animate-pulse"
-                          : "text-[#ffb4ab]/80 border-transparent hover:text-white hover:bg-[#93000a] hover:border-red-500/20"
-                      )}
-                      title={deletingOsId === os.id ? "Clique novamente para confirmar" : "Excluir OS"}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  )}
                 </div>
              </div>
 

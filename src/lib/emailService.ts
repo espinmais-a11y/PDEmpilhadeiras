@@ -260,7 +260,7 @@ export async function sendFinishedOSReport(orderId: string): Promise<{ success: 
 
             <!-- DESCRIPTION -->
             <div style="margin-bottom: 25px;">
-              <h4 style="color: ${primaryColor}; font-size: 14px; margin: 0 0 8px 0; font-weight: bold; text-transform: uppercase;">🔧 Descrição Técnico-Operacional</h4>
+              <h4 style="color: ${primaryColor}; font-size: 14px; margin: 0 0 8px 0; font-weight: bold; text-transform: uppercase;">Descrição Técnico-Operacional</h4>
               <p style="background-color: #f1f5f9; border-left: 4px solid #94a3b8; padding: 12px 16px; margin: 0; font-size: 13px; line-height: 1.6; color: #334155; border-radius: 0 8px 8px 0; font-family: monospace; white-space: pre-line;">
                 ${os.technical_notes || os.description || 'Nenhum detalhe adicional inserido.'}
               </p>

@@ -74,6 +74,7 @@
         "status": { "type": "string", "enum": ["Active", "Completed", "Pending", "Cancelled"] },
         "contract_number": { "type": "string" },
         "notes": { "type": "string" },
+        "rental_type": { "type": "string", "enum": ["Spot", "Mensal"] },
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "machine_id", "customer_id", "start_date", "end_date", "monthly_value", "status"]
