@@ -54,6 +54,84 @@ export function ServiceOrders() {
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [emailSendingText, setEmailSendingText] = useState<string | null>(null);
 
+  // Diagnostic states
+  const [diagnosticOpen, setDiagnosticOpen] = useState(false);
+  const [diagnosticEmail, setDiagnosticEmail] = useState('');
+  const [diagnosticLogs, setDiagnosticLogs] = useState<string[]>([]);
+  const [diagnosticIsSending, setDiagnosticIsSending] = useState(false);
+
+  const handleRunDiagnostic = async () => {
+    if (!diagnosticEmail) {
+      alert('Por favor, informe seu e-mail para o teste.');
+      return;
+    }
+    
+    setDiagnosticIsSending(true);
+    const logs: string[] = [];
+    const addLog = (msg: string) => {
+      logs.push(`[${new Date().toLocaleTimeString()}] ${msg}`);
+      setDiagnosticLogs([...logs]);
+    };
+
+    addLog('Iniciando diagnóstico técnico de envio de e-mail...');
+
+    const gmailScriptUrl = import.meta.env.VITE_GMAIL_SCRIPT_URL;
+    addLog(`VITE_GMAIL_SCRIPT_URL detectado: ${gmailScriptUrl ? 'Sim (Preenchido)' : 'Não (Vazio)'}`);
+    
+    if (gmailScriptUrl) {
+      addLog(`URL do script: "${gmailScriptUrl.substring(0, Math.min(35, gmailScriptUrl.length))}..."`);
+      if (!gmailScriptUrl.startsWith('https://script.google.com/')) {
+        addLog('AVISO: A URL configurada não parece ser um link do Google Apps Script (deve começar com "https://script.google.com/"). Verifique se você copiou o link correto.');
+      }
+    } else {
+      addLog('ERRO CRÍTICO: VITE_GMAIL_SCRIPT_URL não foi preenchida! Preencha na Vercel e salve no painel de segredos do AI Studio.');
+      setDiagnosticIsSending(false);
+      return;
+    }
+
+    addLog(`Preparando payload de teste de email para: ${diagnosticEmail}`);
+    const testPayload = {
+      to: diagnosticEmail,
+      subject: '[TESTE DE CONEXÃO] Diagnóstico PD Manutenção',
+      htmlBody: `
+        <div style="font-family: Arial, sans-serif; padding: 25px; background-color: #f4f6f7; border-radius: 12px; border: 1px solid #e1e8ed; max-width: 500px; margin: 0 auto; color: #333;">
+          <div style="background-color: #121414; padding: 15px; text-align: center; border-radius: 8px 8px 0 0; color: #fff;">
+            <h2 style="color: #caf300; margin: 0; font-size: 18px; text-transform: uppercase;">PD Manutenção</h2>
+          </div>
+          <div style="padding: 20px; background-color: #ffffff; border-radius: 0 0 8px 8px; border: 1px solid #e2e8f0; border-top: 0;">
+            <p style="font-size: 14px; line-height: 1.6; color: #334155;">Olá!</p>
+            <p style="font-size: 14px; line-height: 1.6; color: #334155;">Este é um <strong>e-mail de teste síncrono</strong> disparado diretamente pelo painel de diagnóstico técnico do sistema de gerenciamento de frotas <strong>PD Manutenção</strong>.</p>
+            <p style="font-size: 13px; color: #00c853; font-weight: bold;">✓ Se você recebeu esta mensagem, sua integração com o Google Apps Script está operando perfeitamente!</p>
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+            <p style="font-size: 11px; color: #64748b; text-align: center; margin: 0;">Disparado em: ${new Date().toLocaleString('pt-BR')}</p>
+          </div>
+        </div>
+      `,
+      fromName: 'PD Manutenção (Diagnóstico)'
+    };
+
+    try {
+      addLog('Disparando requisição HTTP POST para o Google Apps Script...');
+      addLog('Usando modo "no-cors" para o fetch. Isso permite que a requisição seja entregue com sucesso, mesmo que o script do Google não exponha cabeçalhos CORS explícitos.');
+      
+      await fetch(gmailScriptUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify(testPayload)
+      });
+
+      addLog('Requisição concluída! Tipo de resposta recebido: "opaque" (comportamento nativo seguro do navegador).');
+      addLog('O navegador confirmou a entrega do pacote HTTP POST sem rejeições na rede.');
+      addLog('AÇÃO RECOMENDADA: Verifique IMEDIATAMENTE a caixa de entrada da sua conta (e também a caixa de SPAM ou Lixo Eletrônico) para ver se o e-mail chegou.');
+      addLog('Processamento encerrado.');
+    } catch (err: any) {
+      addLog(`MENSAGEM DE ERRO: ${err.message || err.toString()}`);
+      addLog('Isso indica que o navegador bloqueou o envio ou a URL informada não pôde ser alcançada.');
+    } finally {
+      setDiagnosticIsSending(false);
+    }
+  };
+
   useEffect(() => {
     fetchCustomers();
   }, []);
@@ -352,18 +430,31 @@ export function ServiceOrders() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h2 className="text-3xl font-black italic tracking-tighter text-white">ORDENS DE SERVIÇO</h2>
           <p className="text-[#c5c9ac] font-['JetBrains_Mono'] text-xs uppercase tracking-widest">Execução técnica e monitoramento</p>
         </div>
         
-        <button 
-          onClick={() => { setEditingOrder(null); setIsModalOpen(true); }}
-          className="bg-[#caf300] text-[#121414] px-4 py-2 font-bold text-[10px] tracking-widest flex items-center gap-2 rounded-lg hover:brightness-110"
-        >
-          <ClipboardList size={14} /> NOVA OS
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button 
+            onClick={() => {
+              setDiagnosticEmail(profile?.email || 'raoniespin@gmail.com');
+              setDiagnosticLogs([]);
+              setDiagnosticOpen(true);
+            }}
+            className="bg-[#1e2020] hover:bg-[#282a2b] text-[#c5c9ac] hover:text-white border border-[#444932] hover:border-[#caf300]/40 px-4 py-2 font-bold text-[10px] tracking-widest flex items-center gap-2 rounded-lg cursor-pointer transition-all uppercase"
+          >
+            <Mail size={14} className="text-[#caf300]" /> Diagnosticar E-mail
+          </button>
+
+          <button 
+            onClick={() => { setEditingOrder(null); setIsModalOpen(true); }}
+            className="bg-[#caf300] text-[#121414] px-4 py-2 font-bold text-[10px] tracking-widest flex items-center gap-2 rounded-lg hover:brightness-110 cursor-pointer"
+          >
+            <ClipboardList size={14} /> NOVA OS
+          </button>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -703,7 +794,7 @@ export function ServiceOrders() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2 bg-[#0c0f0f] border border-[#444932] p-3.5 rounded-xl font-mono text-[11px] text-[#c5c9ac]">
                   <div>
-                    <span className="text-[#caf300] font-bold">DE:</span> {import.meta.env.VITE_RESEND_FROM_EMAIL || 'onboarding@resend.dev'}
+                    <span className="text-[#caf300] font-bold">DE:</span> Google Apps Script / Conta Google Gmail
                   </div>
                   <div>
                     <span className="text-[#caf300] font-bold">PARA:</span> {selectedEmailLog.recipient_email}
@@ -741,6 +832,152 @@ export function ServiceOrders() {
                   className="bg-[#caf300] text-[#121414] px-6 py-2.5 text-[10px] font-black tracking-widest hover:brightness-110 active:scale-[0.98] rounded-xl transition-all cursor-pointer"
                 >
                   FECHAR PRÉVIA
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* DIAGNOSTIC MODAL */}
+      <AnimatePresence>
+        {diagnosticOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in overflow-y-auto"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              className="bg-[#121414] border border-[#444932] w-full max-w-2xl flex flex-col shadow-2xl rounded-2xl overflow-hidden max-h-[90vh]"
+            >
+              <div className="bg-[#1e2020] border-b border-[#444932] p-5 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="bg-[#caf300]/10 p-2 rounded-xl text-[#caf300] border border-[#caf300]/20">
+                    <Mail size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-black text-xs uppercase tracking-wider">Diagnóstico Técnico de E-mail</h3>
+                    <p className="text-[#c5c9ac] text-[10px] font-mono">Validação do Google Apps Script Web App</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setDiagnosticOpen(false)}
+                  className="text-[#c5c9ac] hover:text-white bg-[#282a2b] hover:bg-[#333535] p-2 rounded-xl transition-all cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="flex-1 p-6 space-y-5 overflow-y-auto font-sans text-xs">
+                {/* Status Indicator */}
+                <div className="bg-[#0c0f0f] border border-[#444932] rounded-xl p-4 space-y-2">
+                  <div className="flex justify-between items-center text-[10px] font-mono">
+                    <span className="text-[#c5c9ac] uppercase">Configuração Atual:</span>
+                    {import.meta.env.VITE_GMAIL_SCRIPT_URL ? (
+                      <span className="text-emerald-400 font-bold">✓ CADASTRADA (GMAIL WEB APP)</span>
+                    ) : (
+                      <span className="text-[#ffb4ab] font-bold">✗ NÃO CADASTRADA (VITE_GMAIL_SCRIPT_URL VAZIA)</span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-[#c5c9ac] font-mono break-all bg-[#121414] p-2 rounded border border-[#444932]/40">
+                    URL: {import.meta.env.VITE_GMAIL_SCRIPT_URL || 'Nenhuma URL preenchida nas variáveis de ambiente (.env ou Vercel)'}
+                  </div>
+                </div>
+
+                {/* Test Input Form */}
+                <div className="space-y-2.5">
+                  <h4 className="text-[#caf300] font-black text-[10px] uppercase tracking-wider">Disparar Envio de Teste Imediato</h4>
+                  <div className="flex gap-2">
+                    <input 
+                      type="email" 
+                      value={diagnosticEmail}
+                      onChange={(e) => setDiagnosticEmail(e.target.value)}
+                      placeholder="seu-email@gmail.com"
+                      className="flex-1 bg-[#0c0f0f] border border-[#444932] text-[11px] font-mono text-[#e2e2e2] px-3.5 py-2.5 outline-none focus:border-[#caf300] rounded-xl"
+                    />
+                    <button
+                      onClick={handleRunDiagnostic}
+                      disabled={diagnosticIsSending}
+                      className="bg-[#caf300] text-[#121414] px-5 py-2.5 text-[10px] font-black tracking-widest hover:brightness-110 active:scale-[0.98] rounded-xl disabled:opacity-50 transition-all flex items-center gap-2 cursor-pointer"
+                    >
+                      {diagnosticIsSending ? (
+                        <>
+                          <Loader2 size={13} className="animate-spin" /> ENVIANDO...
+                        </>
+                      ) : (
+                        <>
+                          <Send size={13} /> ENVIAR TESTE
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Live Output Logs */}
+                {diagnosticLogs.length > 0 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-white font-black text-[10px] uppercase tracking-wider">Logs da Execução em Tempo Real:</h4>
+                    <div className="bg-[#0c0f0f] border border-[#444932] rounded-xl p-4 font-mono text-[10px] text-[#c5c9ac] space-y-1.5 max-h-[160px] overflow-y-auto">
+                      {diagnosticLogs.map((log, i) => (
+                        <div key={i} className="leading-relaxed whitespace-pre-wrap">{log}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Instructions Box */}
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 space-y-3 font-sans">
+                  <h4 className="text-yellow-400 font-bold text-[11px] uppercase tracking-wider flex items-center gap-1.5 font-black">
+                    ⚠️ GUIA DE CORREÇÃO DO GOOGLE APPS SCRIPT (MUITO IMPORTANTE!)
+                  </h4>
+                  <p className="text-[#c5c9ac] leading-relaxed text-[11px]">
+                    Se o botão acusou sucesso mas o e-mail não chegou na caixa de entrada, o problema está nas permissões da sua publicação Google. Verifique os pontos abaixo:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-2 text-[#c5c9ac] text-[11px] pl-1">
+                    <li>
+                      <strong className="text-white">Quem tem acesso:</strong> Ao clicar em <em className="text-yellow-400">Implantar &gt; Nova implantação</em> no editor de Apps Script, certifique-se de configurar a opção <strong className="text-white">"Quem tem acesso" (Who has access)</strong> como <strong className="text-yellow-300">Qualquer pessoa (Anyone)</strong>. Se estiver marcado "Apenas eu", o sistema não conseguirá enviar requisições.
+                    </li>
+                    <li>
+                      <strong className="text-white">Autorização Manual:</strong> Na primeira publicação, o Google exige autorização. Clique em implantar, selecione para prosseguir (<em className="text-[#c5c9ac]">Avançado &gt; Abrir projeto não seguro</em>) e autorize o acesso à sua conta.
+                    </li>
+                    <li>
+                      <strong className="text-white">Atualização de Código:</strong> Se você alterar o código do script no site do Google, <strong className="text-white">salvar não atualiza a URL de envio!</strong> Você precisa clicar em <em className="text-yellow-400 font-black">Implantar &gt; Gerenciar implantações &gt; Editar (ícone de lápis) &gt; Versão: Nova Versão &gt; Implantar</em>.
+                    </li>
+                  </ol>
+                  <div className="bg-[#0c0f0f] p-3 rounded-lg border border-[#444932]/40">
+                    <span className="text-white font-bold text-[10px] block mb-1 uppercase tracking-wider">Código recomendado para o seu Google Apps Script:</span>
+                    <pre className="text-[#c5c9ac] font-mono text-[9px] overflow-x-auto p-2 bg-[#121414] rounded leading-relaxed select-all">
+{`function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    MailApp.sendEmail({
+      to: data.to,
+      subject: data.subject,
+      htmlBody: data.htmlBody,
+      name: data.fromName || "PD Manutenção"
+    });
+    return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}`}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-[#1e2020] border-t border-[#444932] p-4 flex justify-end">
+                <button 
+                  onClick={() => setDiagnosticOpen(false)}
+                  className="bg-[#caf300] text-[#121414] px-6 py-2.5 text-[10px] font-black tracking-widest hover:brightness-110 active:scale-[0.98] rounded-xl transition-all cursor-pointer"
+                >
+                  FECHAR DIAGNÓSTICO
                 </button>
               </div>
             </motion.div>
