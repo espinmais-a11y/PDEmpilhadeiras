@@ -46,25 +46,48 @@ export function Auth() {
       console.error('[Auth] Error:', err);
       let userFriendyMessage = 'Ocorreu um erro na autenticação.';
       
-      const errorCode = err.code || '';
-      const errorMessage = err.message || '';
+      const errorCode = String(err?.code || '').toLowerCase();
+      const errorMessage = String(err?.message || '').toLowerCase();
+      const errorFull = String(err || '').toLowerCase();
       
-      if (
+      const isInvalidCredential = 
         errorCode.includes('invalid-credential') || 
         errorMessage.includes('invalid-credential') || 
-        errorMessage.includes('Invalid credentials') ||
-        errorMessage.includes('Invalid login credentials') ||
+        errorFull.includes('invalid-credential') ||
+        errorMessage.includes('invalid credentials') ||
+        errorMessage.includes('invalid login credentials') ||
         errorCode.includes('wrong-password') ||
-        errorCode.includes('user-not-found')
-      ) {
-        userFriendyMessage = 'E-mail ou senha incorretos, ou usuário ainda não cadastrado.';
-      } else if (errorCode.includes('email-already-in-use') || errorMessage.includes('User already registered') || errorMessage.includes('email already in use')) {
-        userFriendyMessage = 'Este e-mail já está cadastrado no sistema.';
-      } else if (errorCode.includes('weak-password') || errorMessage.includes('Password should be at least 6 characters')) {
+        errorCode.includes('user-not-found') ||
+        errorFull.includes('wrong-password') ||
+        errorFull.includes('user-not-found');
+
+      const isEmailAlreadyInUse = 
+        errorCode.includes('email-already-in-use') || 
+        errorMessage.includes('user already registered') || 
+        errorMessage.includes('email already in use') ||
+        errorFull.includes('email-already-in-use') ||
+        errorFull.includes('user already registered');
+
+      const isWeakPassword = 
+        errorCode.includes('weak-password') || 
+        errorMessage.includes('password should be at least 6 characters') ||
+        errorFull.includes('weak-password') ||
+        errorFull.includes('password should be');
+
+      const isInvalidEmail = 
+        errorCode.includes('invalid-email') || 
+        errorMessage.includes('invalid-email') ||
+        errorFull.includes('invalid-email');
+
+      if (isInvalidCredential) {
+        userFriendyMessage = 'E-mail ou senha incorretos, ou usuário ainda não cadastrado. Se for o seu primeiro acesso, clique em "NÃO POSSUI CONTA? CADASTRE-SE" abaixo para criar sua conta.';
+      } else if (isEmailAlreadyInUse) {
+        userFriendyMessage = 'Este e-mail já está cadastrado no sistema. Tente fazer login ou redefinir sua senha.';
+      } else if (isWeakPassword) {
         userFriendyMessage = 'A senha deve conter no mínimo 6 caracteres.';
-      } else if (errorCode.includes('invalid-email')) {
+      } else if (isInvalidEmail) {
         userFriendyMessage = 'O formato do e-mail inserido é inválido.';
-      } else if (errorMessage.includes('Email not confirmed')) {
+      } else if (errorMessage.includes('email not confirmed') || errorFull.includes('email not confirmed')) {
         userFriendyMessage = 'Por favor, confirme seu e-mail antes de acessar.';
       } else {
         userFriendyMessage = `${err.message || 'Erro desconhecido na autenticação.'}`;

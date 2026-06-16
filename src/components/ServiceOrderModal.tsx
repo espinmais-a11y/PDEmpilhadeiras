@@ -64,7 +64,11 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
   const [checklistAnswers, setChecklistAnswers] = useState<Record<string, 'ok' | 'pending'>>({});
   const [savingChecklist, setSavingChecklist] = useState(false);
   const [newItemLabel, setNewItemLabel] = useState('');
+  const [newItemPart, setNewItemPart] = useState('⚠️ Segurança, Sinalização e Organização');
   const [addingItem, setAddingItem] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingItemLabel, setEditingItemLabel] = useState('');
+  const [editingItemPart, setEditingItemPart] = useState('');
 
   // Photos state
   const [photos, setPhotos] = useState<ServiceOrderPhoto[]>([]);
@@ -705,6 +709,7 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
       const { data, error } = await supabase.from('preventive_checklist_items').insert([{
         label: newItemLabel.trim(),
         display_order: checklistItems.length + 1,
+        part: newItemPart,
         is_active: true,
         created_by: profile?.id,
       }]).select().single();
@@ -715,6 +720,21 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
       setError('Erro ao adicionar item: ' + (err.message || ''));
     } finally {
       setAddingItem(false);
+    }
+  }
+
+  async function saveEditedChecklistItem(itemId: string) {
+    if (!editingItemLabel.trim() || !isAdmin) return;
+    try {
+      const { error } = await supabase.from('preventive_checklist_items').update({
+        label: editingItemLabel.trim(),
+        part: editingItemPart,
+      }).eq('id', itemId);
+      if (error) throw error;
+      setChecklistItems(prev => prev.map(item => item.id === itemId ? { ...item, label: editingItemLabel.trim(), part: editingItemPart } : item));
+      setEditingItemId(null);
+    } catch (err: any) {
+      setError('Erro ao editar item: ' + (err.message || ''));
     }
   }
 
@@ -1332,16 +1352,18 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
                         <div key={partName} className="space-y-3">
                           <div className="border-l-4 border-[#caf300] pl-3 py-1 bg-[#1e2020]/50 rounded-r-lg">
                             <h5 className="text-[11px] font-black tracking-widest uppercase text-[#caf300]">{partName}</h5>
-                            {partName.includes('PARTE 1') && (
+                            {partName.includes('Foto') || partName.includes('Fotográfico') ? (
                               <p className="text-[10px] text-[#c5c9ac] italic mt-0.5 font-sans">
                                 Instrução: Utilize o dispositivo para anexar as fotos reais do equipamento no momento da inspeção.
                               </p>
-                            )}
+                            ) : null}
                           </div>
                           
                           <div className="space-y-2.5">
                             {(items as ChecklistItem[]).map((item) => {
                               const answer = checklistAnswers[item.id];
+                              const isEditingThis = editingItemId === item.id;
+                              
                               return (
                                 <div
                                   key={item.id}
@@ -1352,58 +1374,113 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
                                     "bg-[#0c0f0f] border-[#444932]"
                                   )}
                                 >
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="flex items-start gap-3 flex-1">
-                                      <p className="text-xs font-bold text-white leading-relaxed">{item.label}</p>
+                                  {isEditingThis ? (
+                                    <div className="space-y-3">
+                                      <textarea
+                                        value={editingItemLabel}
+                                        onChange={(e) => setEditingItemLabel(e.target.value)}
+                                        className="w-full bg-[#0c0f0f] border border-[#444932] text-xs text-white px-3 py-2 rounded-xl focus:border-[#7c3aed] outline-none text-left"
+                                        rows={2}
+                                      />
+                                      <div className="flex flex-col md:flex-row gap-3">
+                                        <select
+                                          value={editingItemPart}
+                                          onChange={(e) => setEditingItemPart(e.target.value)}
+                                          className="bg-[#0c0f0f] border border-[#444932] text-xs text-white px-3 py-2 rounded-xl focus:border-[#7c3aed] outline-none flex-1"
+                                        >
+                                          <option value="📷 Registro Fotográfico Inicial">📷 Registro Fotográfico Inicial</option>
+                                          <option value="🔍 Estrutura e Aspecto Visual">🔍 Estrutura e Aspecto Visual</option>
+                                          <option value="⚡ Sistema Elétrico e Cabeamento">⚡ Sistema Elétrico e Cabeamento</option>
+                                          <option value="⚙️ Componentes Mecânicos e Desgaste">⚙️ Componentes Mecânicos e Desgaste</option>
+                                          <option value="⚠️ Segurança, Sinalização e Organização">⚠️ Segurança, Sinalização e Organização</option>
+                                        </select>
+                                        <div className="flex gap-2 shrink-0 justify-end">
+                                          <button
+                                            type="button"
+                                            onClick={() => setEditingItemId(null)}
+                                            className="px-3 py-2 rounded-lg bg-[#333535] text-white text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+                                          >
+                                            Cancelar
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => saveEditedChecklistItem(item.id)}
+                                            className="px-4 py-2 rounded-lg bg-[#caf300] text-black text-[10px] font-black uppercase tracking-widest transition-all hover:brightness-110 cursor-pointer"
+                                          >
+                                            Salvar
+                                          </button>
+                                        </div>
+                                      </div>
                                     </div>
-                                    {isAdmin && !isReadOnly && (
-                                      <button
-                                        onClick={() => deleteChecklistItem(item.id)}
-                                        className="text-[#444932] hover:text-[#ffb4ab] transition-colors shrink-0 p-1"
-                                        title="Remover item"
-                                      >
-                                        <Trash2 size={12} />
-                                      </button>
-                                    )}
-                                  </div>
-                                  {!isReadOnly && (
-                                    <div className="flex gap-2 mt-3 justify-end md:justify-start">
-                                      <button
-                                        type="button"
-                                        onClick={() => setChecklistAnswers(prev => ({ ...prev, [item.id]: 'ok' }))}
-                                        className={clsx(
-                                          "flex-1 md:flex-initial flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border cursor-pointer",
-                                          answer === 'ok'
-                                            ? "bg-green-500 text-black border-green-500 font-extrabold shadow-lg shadow-green-500/20"
-                                            : "bg-[#1e2020] border-[#444932] text-[#c5c9ac] hover:border-green-500/35"
+                                  ) : (
+                                    <div>
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-start gap-3 flex-1">
+                                          <p className="text-xs font-bold text-white leading-relaxed">{item.label}</p>
+                                        </div>
+                                        {isAdmin && !isReadOnly && (
+                                          <div className="flex items-center gap-1 shrink-0">
+                                            <button
+                                              onClick={() => {
+                                                setEditingItemId(item.id);
+                                                setEditingItemLabel(item.label);
+                                                setEditingItemPart(item.part || 'GERAL');
+                                              }}
+                                              className="text-[#c5c9ac] hover:text-[#caf300] transition-colors p-1"
+                                              title="Editar item"
+                                            >
+                                              <PenLine size={12} />
+                                            </button>
+                                            <button
+                                              onClick={() => deleteChecklistItem(item.id)}
+                                              className="text-[#444932] hover:text-[#ffb4ab] transition-colors p-1"
+                                              title="Remover item"
+                                            >
+                                              <Trash2 size={12} />
+                                            </button>
+                                          </div>
                                         )}
-                                      >
-                                        <CheckCircle2 size={12} />
-                                        OK
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => setChecklistAnswers(prev => ({ ...prev, [item.id]: 'pending' }))}
-                                        className={clsx(
-                                          "flex-1 md:flex-initial flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border cursor-pointer",
-                                          answer === 'pending'
-                                            ? "bg-[#d97706] text-black border-[#d97706] font-extrabold shadow-lg shadow-amber-500/20"
-                                            : "bg-[#1e2020] border-[#444932] text-[#c5c9ac] hover:border-amber-500/35"
-                                        )}
-                                      >
-                                        <AlertTriangle size={12} />
-                                        PENDENTE
-                                      </button>
-                                    </div>
-                                  )}
-                                  {isReadOnly && answer && (
-                                    <div className="mt-2">
-                                      <span className={clsx(
-                                        "px-2 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg",
-                                        answer === 'ok' ? "bg-green-500/20 text-green-400" : "bg-amber-500/20 text-amber-500"
-                                      )}>
-                                        {answer === 'ok' ? '✓ OK' : '✗ PENDENTE'}
-                                      </span>
+                                      </div>
+                                      {!isReadOnly && (
+                                        <div className="flex gap-2 mt-3 justify-end md:justify-start">
+                                          <button
+                                            type="button"
+                                            onClick={() => setChecklistAnswers(prev => ({ ...prev, [item.id]: 'ok' }))}
+                                            className={clsx(
+                                              "flex-1 md:flex-initial flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border cursor-pointer",
+                                              answer === 'ok'
+                                                ? "bg-green-500 text-black border-green-500 font-extrabold shadow-lg shadow-green-500/20"
+                                                : "bg-[#1e2020] border-[#444932] text-[#c5c9ac] hover:border-green-500/35"
+                                            )}
+                                          >
+                                            <CheckCircle2 size={12} />
+                                            OK
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => setChecklistAnswers(prev => ({ ...prev, [item.id]: 'pending' }))}
+                                            className={clsx(
+                                              "flex-1 md:flex-initial flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border cursor-pointer",
+                                              answer === 'pending'
+                                                ? "bg-[#d97706] text-black border-[#d97706] font-extrabold shadow-lg shadow-amber-500/20"
+                                                : "bg-[#1e2020] border-[#444932] text-[#c5c9ac] hover:border-amber-500/35"
+                                            )}
+                                          >
+                                            <AlertTriangle size={12} />
+                                            PENDENTE
+                                          </button>
+                                        </div>
+                                      )}
+                                      {isReadOnly && answer && (
+                                        <div className="mt-2">
+                                          <span className={clsx(
+                                            "px-2 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg",
+                                            answer === 'ok' ? "bg-green-500/20 text-green-400" : "bg-amber-500/20 text-amber-500"
+                                          )}>
+                                            {answer === 'ok' ? '✓ OK' : '✗ PENDENTE'}
+                                          </span>
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -1479,30 +1556,49 @@ export function ServiceOrderModal({ isOpen, onClose, onSuccess, editingOrder, on
                       </div>
                     )}
 
-                    {/* Add item (Admin only) */}
-                    {isAdmin && !isReadOnly && (
-                      <div className="border-t border-[#444932] pt-4 space-y-3">
-                        <p className="text-[9px] font-bold text-[#c5c9ac] uppercase tracking-widest">Adicionar item ao questionário (Geral)</p>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={newItemLabel}
-                            onChange={(e) => setNewItemLabel(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addChecklistItem())}
-                            placeholder="Descrição do item de inspeção..."
-                            className="flex-1 bg-[#0c0f0f] border border-[#444932] text-sm text-white px-4 py-2.5 rounded-xl focus:border-[#7c3aed] outline-none transition-all placeholder:text-[#444932]"
-                          />
-                          <button
-                            onClick={addChecklistItem}
-                            disabled={addingItem || !newItemLabel.trim()}
-                            className="bg-[#7c3aed] text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5"
-                          >
-                            {addingItem ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                            ADD
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                     {/* Add item (Admin only) */}
+                     {isAdmin && !isReadOnly && (
+                       <div className="border-t border-[#444932] pt-4 space-y-3">
+                         <p className="text-[10px] font-bold text-[#c5c9ac] uppercase tracking-widest">Adicionar Item ao Questionário</p>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                           <div>
+                             <label className="block text-[9px] font-bold text-[#c5c9ac] uppercase tracking-widest mb-1">Seção / Categoria</label>
+                             <select
+                               value={newItemPart}
+                               onChange={(e) => setNewItemPart(e.target.value)}
+                               className="w-full bg-[#0c0f0f] border border-[#444932] text-xs text-white px-3 py-2.5 rounded-xl focus:border-[#7c3aed] outline-none"
+                             >
+                               <option value="📷 Registro Fotográfico Inicial">📷 Registro Fotográfico Inicial</option>
+                               <option value="🔍 Estrutura e Aspecto Visual">🔍 Estrutura e Aspecto Visual</option>
+                               <option value="⚡ Sistema Elétrico e Cabeamento">⚡ Sistema Elétrico e Cabeamento</option>
+                               <option value="⚙️ Componentes Mecânicos e Desgaste">⚙️ Componentes Mecânicos e Desgaste</option>
+                               <option value="⚠️ Segurança, Sinalização e Organização">⚠️ Segurança, Sinalização e Organização</option>
+                             </select>
+                           </div>
+                           <div>
+                             <label className="block text-[9px] font-bold text-[#c5c9ac] uppercase tracking-widest mb-1">Pergunta / Descrição</label>
+                             <div className="flex gap-2">
+                               <input
+                                 type="text"
+                                 value={newItemLabel}
+                                 onChange={(e) => setNewItemLabel(e.target.value)}
+                                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addChecklistItem())}
+                                 placeholder="Descrição do item de inspeção..."
+                                 className="flex-1 bg-[#0c0f0f] border border-[#444932] text-xs text-white px-4 py-2.5 rounded-xl focus:border-[#7c3aed] outline-none transition-all placeholder:text-[#444932]"
+                               />
+                               <button
+                                 onClick={addChecklistItem}
+                                 disabled={addingItem || !newItemLabel.trim()}
+                                 className="bg-[#7c3aed] text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all disabled:opacity-55 flex items-center justify-center gap-1.5 cursor-pointer"
+                               >
+                                 {addingItem ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                                 ADD
+                               </button>
+                             </div>
+                           </div>
+                         </div>
+                       </div>
+                     )}
                   </div>
                 );
               })()}
