@@ -1,9 +1,23 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PD Empilhadeiras</title>
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#121414" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="/pwa_icon_512.jpg" />
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('[PWA] Service Worker registrado com sucesso:', reg))
+            .catch(err => console.error('[PWA] Falha ao registrar Service Worker:', err));
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

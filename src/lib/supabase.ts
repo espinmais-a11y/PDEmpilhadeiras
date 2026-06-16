@@ -83,8 +83,23 @@ const fetchColData = async (col: string): Promise<any[]> => {
     });
     if (cloudData.length > 0) {
       localStorage.setItem(localKey, JSON.stringify(cloudData));
+      return cloudData;
+    } else {
+      // Se a nuvem estiver vazia, tenta retornar caches locais (como sementes/offline) e sincronizá-los
+      let localCache: any[] = [];
+      try {
+        localCache = JSON.parse(localStorage.getItem(localKey) || '[]');
+      } catch (e) {}
+      if (localCache.length > 0) {
+        localCache.forEach(async (item: any) => {
+          try {
+            await setDoc(doc(db, col, item.id), item);
+          } catch (e) {}
+        });
+        return localCache;
+      }
+      return [];
     }
-    return cloudData;
   } catch (error) {
     console.warn(`[FirebaseSync] Firestore fetch failed for ${col}. Loading from offline-first cache:`, error);
     try {
