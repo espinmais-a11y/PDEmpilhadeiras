@@ -68,7 +68,7 @@ const syncToFirestoreAndLocal = async (col: string, id: string, data: any, opera
         console.warn(`[FirebaseSync] Sourcing fallback local for admin_settings due to cloud sync restrictions.`);
         return;
       }
-      throw err;
+      console.warn(`[FirebaseSync] Sourcing offline-first local fallback for write in ${col}/${id} due to cloud restriction or connection failure.`);
     }
   }
 };
@@ -529,7 +529,7 @@ class QueryBuilder {
             singleData = localCache.find((x: any) => String(x.id).toLowerCase() === String(docId).toLowerCase()) || null;
           } catch (e) {}
           if (!isDummyConfig && (err.code === 'permission-denied' || err.message?.includes('permission') || err.message?.includes('key'))) {
-            throw err;
+            console.warn(`[FirebaseSync] Permission denied or config restricted for single doc fetch in ${this.col}/${docId}. Falling back to cached local data.`);
           }
         }
         data = singleData ? [singleData] : [];
