@@ -10,6 +10,7 @@ export function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [imageError, setImageError] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -85,7 +86,17 @@ export function Auth() {
         <div className="p-8">
           <div className="flex flex-col items-center mb-8">
             <div className="w-24 h-24 bg-[#121414] border border-[#caf300]/20 flex items-center justify-center rounded-2xl mb-4 shadow-[0_0_20px_rgba(202,243,0,0.1)] overflow-hidden">
-               <img src="/logo.png" alt="Logo" className="w-full h-full object-contain p-2 drop-shadow-[0_0_8px_rgba(202,243,0,0.4)]" />
+               {imageError ? (
+                 <Forklift size={48} className="text-[#caf300] drop-shadow-[0_0_8px_rgba(202,243,0,0.4)]" />
+               ) : (
+                 <img
+                   src="https://lh3.googleusercontent.com/d/1uJWxuainApdp50CyOL6UyTmkudQ76pCE"
+                   alt="Logo"
+                   onError={() => setImageError(true)}
+                   className="w-full h-full object-contain p-2 drop-shadow-[0_0_8px_rgba(202,243,0,0.4)]"
+                   referrerPolicy="no-referrer"
+                 />
+               )}
             </div>
             <h1 className="text-3xl font-black text-white tracking-tighter italic">PD EMPILHADEIRAS</h1>
             <p className="text-[#c5c9ac] font-['JetBrains_Mono'] text-[10px] tracking-widest uppercase mt-2 text-center">

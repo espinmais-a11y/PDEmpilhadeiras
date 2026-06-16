@@ -10,6 +10,8 @@ export function Layout() {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [sidebarImageError, setSidebarImageError] = useState(false);
+  const [mobileImageError, setMobileImageError] = useState(false);
 
   const isAdmin = profile?.role?.toString().toLowerCase().trim() === 'admin';
 
@@ -80,7 +82,17 @@ export function Layout() {
       <aside className="hidden md:flex flex-col w-64 border-r border-[#444932] bg-[#1e2020] m-4 mr-0 rounded-2xl overflow-hidden animate-fade-in">
         <div className="p-6">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain drop-shadow-[0_0_8px_rgba(202,243,0,0.4)]" />
+            {sidebarImageError ? (
+              <Forklift className="w-10 h-10 text-[#caf300] object-contain drop-shadow-[0_0_8px_rgba(202,243,0,0.4)]" />
+            ) : (
+              <img
+                src="https://lh3.googleusercontent.com/d/1uJWxuainApdp50CyOL6UyTmkudQ76pCE"
+                alt="Logo"
+                onError={() => setSidebarImageError(true)}
+                className="w-10 h-10 object-contain drop-shadow-[0_0_8px_rgba(202,243,0,0.4)]"
+                referrerPolicy="no-referrer"
+              />
+            )}
             <div>
               <h1 className="text-xl font-bold text-[#caf300] tracking-tighter leading-tight">PD EMPILHADEIRAS</h1>
               <p className="text-[9px] font-bold text-[#c5c9ac] tracking-[0.1em]">Locação e Manutenção</p>
@@ -156,7 +168,17 @@ export function Layout() {
              <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-[#caf300] p-1">
                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
              </button>
-             <img src="/logo.png" alt="Logo" className="w-7 h-7 object-contain" />
+             {mobileImageError ? (
+               <Forklift className="w-7 h-7 text-[#caf300] object-contain" />
+             ) : (
+               <img
+                 src="https://lh3.googleusercontent.com/d/1uJWxuainApdp50CyOL6UyTmkudQ76pCE"
+                 alt="Logo"
+                 onError={() => setMobileImageError(true)}
+                 className="w-7 h-7 object-contain"
+                 referrerPolicy="no-referrer"
+               />
+             )}
              <h1 className="text-base font-bold text-[#caf300] tracking-tighter truncate max-w-[140px]">PD EMPILHADEIRAS</h1>
           </div>
           
