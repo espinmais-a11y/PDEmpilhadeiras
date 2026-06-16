@@ -69,6 +69,7 @@ const syncToFirestoreAndLocal = async (col: string, id: string, data: any, opera
         return;
       }
       console.warn(`[FirebaseSync] Sourcing offline-first local fallback for write in ${col}/${id} due to cloud restriction or connection failure.`);
+      throw err;
     }
   }
 };
@@ -89,6 +90,16 @@ const fetchColData = async (col: string): Promise<any[]> => {
 
       const cloudIds = new Set(cloudData.map((x: any) => x.id));
       const localOnly = localCache.filter((x: any) => x && x.id && !cloudIds.has(x.id));
+
+      if (localOnly.length > 0) {
+        localOnly.forEach(async (item: any) => {
+          try {
+            await setDoc(doc(db, col, item.id), item);
+          } catch (e) {
+            console.warn(`[FirebaseSync] Failed to sync localOnly item ${item.id} to cloud for ${col}:`, e);
+          }
+        });
+      }
 
       const merged = [...cloudData, ...localOnly];
       localStorage.setItem(localKey, JSON.stringify(merged));
