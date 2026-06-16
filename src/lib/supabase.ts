@@ -82,8 +82,17 @@ const fetchColData = async (col: string): Promise<any[]> => {
       cloudData.push({ ...doc.data(), id: doc.id });
     });
     if (cloudData.length > 0) {
-      localStorage.setItem(localKey, JSON.stringify(cloudData));
-      return cloudData;
+      let localCache: any[] = [];
+      try {
+        localCache = JSON.parse(localStorage.getItem(localKey) || '[]');
+      } catch (e) {}
+
+      const cloudIds = new Set(cloudData.map((x: any) => x.id));
+      const localOnly = localCache.filter((x: any) => x && x.id && !cloudIds.has(x.id));
+
+      const merged = [...cloudData, ...localOnly];
+      localStorage.setItem(localKey, JSON.stringify(merged));
+      return merged;
     } else {
       // Se a nuvem estiver vazia, tenta retornar caches locais (como sementes/offline) e sincronizá-los
       let localCache: any[] = [];
