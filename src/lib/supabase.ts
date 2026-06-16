@@ -388,7 +388,9 @@ class QueryBuilder {
   }
 
   select(fields?: string, opts?: { count?: string; head?: boolean }) {
-    this.pendingAction = 'select';
+    if (this.pendingAction === 'select') {
+      this.pendingAction = 'select';
+    }
     if (opts?.count) {
       this.countVal = true;
     }
